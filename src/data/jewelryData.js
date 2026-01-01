@@ -1,0 +1,49 @@
+export const BASE_CONFIG = {
+  id: "base-bracelet",
+  name: "Classic Gold Bracelet",
+  // image: "/assets/base/bracelet.png", // Deprecated
+  baseBeadImage: "/assets/base/gold_bead.png",
+  dimensions: {
+    width: 500,
+    height: 500,
+  },
+  layout: {
+    type: "ellipse",
+    centerX: 250,
+    centerY: 250,
+    radiusX: 185,
+    radiusY: 185,
+    // 0 is right (3 o'clock), -PI/2 is top (12 o'clock).
+    startAngle: -Math.PI / 2,
+    endAngle: Math.PI * 1.5,
+  },
+  slotCount: 16, // Fixed number of beads/slots on the bracelet
+  maxComponents: 16,
+};
+
+export const COMPONENTS = [
+  {
+    id: "amethyst",
+    name: "Amethyst",
+    image: "/assets/stones/amethyst.png",
+    price: 45,
+    width: 55,
+    height: 55,
+  },
+  {
+    id: "pearl",
+    name: "Freshwater Pearl",
+    image: "/assets/stones/pearl.png",
+    price: 30,
+    width: 55,
+    height: 55,
+  },
+  {
+    id: "jade",
+    name: "Green Jade",
+    image: "/assets/stones/jade.png",
+    price: 55,
+    width: 55,
+    height: 55,
+  },
+];
