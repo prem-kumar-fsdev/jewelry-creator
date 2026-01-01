@@ -3,21 +3,21 @@ import { COMPONENTS } from "../data/jewelryData";
 
 const Controls = ({
     configuration,
-    activeSlot,
-    onSelectSlot,
+    activeItemUuid,
     onSelectStone,
     onRemove,
     onClear,
     onExport,
     onAddToCart
 }) => {
-    const totalPrice = configuration.reduce((sum, id) => {
-        if (!id) return sum;
-        const comp = COMPONENTS.find((c) => c.id === id);
+    const totalPrice = configuration.reduce((sum, item) => {
+        if (!item.id) return sum;
+        const comp = COMPONENTS.find((c) => c.id === item.id);
         return sum + (comp ? comp.price : 0);
     }, 0);
 
-    const filledCount = configuration.filter(Boolean).length;
+    const activeItem = activeItemUuid ? configuration.find(i => i.uuid === activeItemUuid) : null;
+    const activeComp = activeItem && activeItem.id ? COMPONENTS.find(c => c.id === activeItem.id) : null;
 
     return (
         <div className="controls-panel">
@@ -28,58 +28,40 @@ const Controls = ({
 
             <div className="section">
                 <div className="section-header">
-                    <h3>1. Select Position</h3>
-                    {filledCount > 0 && (
+                    <h3>1. Edit Bead</h3>
+                    {configuration.length > 0 && (
                         <button className="text-btn danger" onClick={onClear}>
                             Clear All
                         </button>
                     )}
                 </div>
 
-                <div className="slots-grid">
-                    {configuration.map((id, index) => {
-                        const comp = id ? COMPONENTS.find((c) => c.id === id) : null;
-                        const isActive = activeSlot === index;
-
-                        return (
-                            <button
-                                key={index}
-                                className={`slot-btn ${isActive ? "active" : ""} ${id ? "filled" : "empty"}`}
-                                onClick={() => onSelectSlot(index)}
-                                title={`Position ${index + 1}`}
-                            >
-                                <span className="slot-number">{index + 1}</span>
-                                {comp ? (
-                                    <img src={comp.image} alt={comp.name} />
-                                ) : (
-                                    <span className="slot-placeholder"></span>
-                                )}
-                                {id && isActive && (
-                                    <span
-                                        className="slot-remove"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onRemove(index);
-                                        }}
-                                    >
-                                        ×
-                                    </span>
-                                )}
+                {!activeItem ? (
+                    <div className="instruction-box">
+                        <p>Click anywhere on the gold wire to add a bead.</p>
+                        <p>Click on a bead to select it.</p>
+                    </div>
+                ) : (
+                    <div className="selected-item-controls">
+                        <div className="selected-info">
+                            <span>Selected: <strong>{activeComp ? activeComp.name : "Base Gold Bead"}</strong></span>
+                            <button className="text-btn danger" onClick={() => onRemove(activeItem.uuid)}>
+                                Remove Bead
                             </button>
-                        );
-                    })}
-                </div>
+                        </div>
+                    </div>
+                )}
             </div>
 
-            <div className="section">
+            <div className={`section ${!activeItem ? 'disabled' : ''}`}>
                 <h3>2. Choose Stone</h3>
-                <div className={`components-grid ${activeSlot === null ? "disabled" : ""}`}>
+                <div className="components-grid">
                     {COMPONENTS.map((comp) => (
                         <button
                             key={comp.id}
-                            className="component-btn"
+                            className={`component-btn ${activeItem && activeItem.id === comp.id ? 'active' : ''}`}
                             onClick={() => onSelectStone(comp.id)}
-                            disabled={activeSlot === null}
+                            disabled={!activeItem}
                             title={comp.name}
                         >
                             <img src={comp.image} alt={comp.name} />
@@ -88,9 +70,6 @@ const Controls = ({
                         </button>
                     ))}
                 </div>
-                {activeSlot === null && (
-                    <p className="hint-text">Select a position above to add a stone.</p>
-                )}
             </div>
 
             <div className="actions" style={{ display: 'flex', gap: '1rem' }}>
@@ -98,14 +77,14 @@ const Controls = ({
                     className="primary-btn"
                     style={{ background: 'transparent', border: '1px solid var(--primary-color)', color: 'var(--primary-color)' }}
                     onClick={onExport}
-                    disabled={filledCount === 0}
+                    disabled={configuration.length === 0}
                 >
                     Export
                 </button>
                 <button
                     className="primary-btn"
                     onClick={onAddToCart}
-                    disabled={filledCount === 0}
+                    disabled={configuration.length === 0}
                 >
                     Add to Cart
                 </button>

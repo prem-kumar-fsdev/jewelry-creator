@@ -4,39 +4,53 @@ import Controls from "./Controls";
 import { BASE_CONFIG } from "../data/jewelryData";
 
 const JewelryConfigurator = () => {
-    // Initialize with empty slots (null)
-    const [configuration, setConfiguration] = useState(
-        Array(BASE_CONFIG.slotCount).fill(null)
-    );
-    const [activeSlot, setActiveSlot] = useState(null);
+    // Configuration is now an array of objects: { id: string, angle: number, uuid: string }
+    const [configuration, setConfiguration] = useState([]);
+    const [activeItemUuid, setActiveItemUuid] = useState(null);
     const canvasRef = useRef(null);
 
-    const handleSelectSlot = (index) => {
-        setActiveSlot(index);
+    // Initial load - maybe add some default beads? 
+    // Let's start empty for "custom" feel, or maybe 4 balanced ones.
+
+    // Helper to generate unique ID
+    const generateUuid = () => Math.random().toString(36).substr(2, 9);
+
+    const handleCanvasClick = (clickData) => {
+        // clickData contains { type: 'add'|'select', ... }
+        if (clickData.type === 'add') {
+            const newItem = {
+                uuid: generateUuid(),
+                id: null, // null = base bead
+                angle: clickData.angle,
+            };
+            setConfiguration(prev => [...prev, newItem]);
+            setActiveItemUuid(newItem.uuid);
+        } else if (clickData.type === 'select') {
+            setActiveItemUuid(clickData.uuid);
+        }
+    };
+
+    const handleItemMove = (uuid, newAngle) => {
+        setConfiguration(prev => prev.map(item =>
+            item.uuid === uuid ? { ...item, angle: newAngle } : item
+        ));
     };
 
     const handleSelectStone = (stoneId) => {
-        if (activeSlot === null) {
-            // If no slot selected, maybe find first empty? Or just ignore.
-            // Let's auto-select first empty if none selected, or just do nothing.
-            // Better UX: Do nothing, user must select slot.
-            alert("Please select a bead position first.");
-            return;
-        }
-        const newConfig = [...configuration];
-        newConfig[activeSlot] = stoneId;
-        setConfiguration(newConfig);
+        if (!activeItemUuid) return;
+        setConfiguration(prev => prev.map(item =>
+            item.uuid === activeItemUuid ? { ...item, id: stoneId } : item
+        ));
     };
 
-    const handleRemove = (index) => {
-        const newConfig = [...configuration];
-        newConfig[index] = null;
-        setConfiguration(newConfig);
+    const handleRemove = (uuid) => {
+        setConfiguration(prev => prev.filter(item => item.uuid !== uuid));
+        if (activeItemUuid === uuid) setActiveItemUuid(null);
     };
 
     const handleClear = () => {
-        setConfiguration(Array(BASE_CONFIG.slotCount).fill(null));
-        setActiveSlot(null);
+        setConfiguration([]);
+        setActiveItemUuid(null);
     };
 
     const handleCanvasReady = (ref) => {
@@ -88,6 +102,7 @@ const JewelryConfigurator = () => {
                     configuration={configuration}
                     onCanvasReady={handleCanvasReady}
                     calibration={calibration}
+                    onCanvasClick={handleCanvasClick}
                 />
 
                 {/* Calibration Controls */}
@@ -141,8 +156,7 @@ const JewelryConfigurator = () => {
             <div className="sidebar">
                 <Controls
                     configuration={configuration}
-                    activeSlot={activeSlot}
-                    onSelectSlot={handleSelectSlot}
+                    activeItemUuid={activeItemUuid}
                     onSelectStone={handleSelectStone}
                     onRemove={handleRemove}
                     onClear={handleClear}
