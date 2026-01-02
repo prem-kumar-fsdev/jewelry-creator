@@ -61,8 +61,13 @@ const Controls = ({
                             key={comp.id}
                             className={`component-btn ${activeItem && activeItem.id === comp.id ? 'active' : ''}`}
                             onClick={() => onSelectStone(comp.id)}
-                            disabled={!activeItem}
+                            disabled={false} // Always enable dragging
                             title={comp.name}
+                            draggable="true"
+                            onDragStart={(e) => {
+                                e.dataTransfer.setData("application/json", JSON.stringify({ id: comp.id }));
+                                e.dataTransfer.effectAllowed = "copy";
+                            }}
                         >
                             <img src={comp.image} alt={comp.name} />
                             <span className="comp-name">{comp.name}</span>

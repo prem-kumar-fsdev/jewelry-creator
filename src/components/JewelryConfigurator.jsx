@@ -95,6 +95,17 @@ const JewelryConfigurator = () => {
         }));
     };
 
+    const handleDrop = (dropData) => {
+        // dropData = { id, angle }
+        const newItem = {
+            uuid: generateUuid(),
+            id: dropData.id,
+            angle: dropData.angle,
+        };
+        setConfiguration(prev => [...prev, newItem]);
+        setActiveItemUuid(newItem.uuid);
+    };
+
     return (
         <div className="configurator-layout">
             <div className="preview-area" style={{ flexDirection: 'column' }}>
@@ -103,6 +114,7 @@ const JewelryConfigurator = () => {
                     onCanvasReady={handleCanvasReady}
                     calibration={calibration}
                     onCanvasClick={handleCanvasClick}
+                    onDrop={handleDrop}
                 />
 
                 {/* Calibration Controls */}

@@ -11,9 +11,10 @@ const loadImage = (src) =>
         img.src = src;
     });
 
-const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClick }) => {
+const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClick, onDrop }) => {
     const canvasRef = useRef(null);
     const [isDrawing, setIsDrawing] = useState(false);
+    const [previewItem, setPreviewItem] = useState(null); // { id, angle, isColliding }
 
     // Helpers to get current layout
     const getLayout = () => {
@@ -28,22 +29,82 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
         return layout;
     };
 
+    const getCanvasCoordinates = (e, canvas) => {
+        const rect = canvas.getBoundingClientRect();
+        const x = (e.clientX - rect.left) * (BASE_CONFIG.dimensions.width / rect.width);
+        const y = (e.clientY - rect.top) * (BASE_CONFIG.dimensions.height / rect.height);
+        return { x, y };
+    };
+
+    // Helper: collision detection
+    const checkCollision = (angle, layout, excludeUuid = null) => {
+        const newPos = getPointOnEllipse(angle, layout);
+        const MIN_GAP = 25;
+
+        return configuration.some(item => {
+            if (excludeUuid && item.uuid === excludeUuid) return false;
+            const existingPos = getPointOnEllipse(item.angle, layout);
+            const dist = Math.sqrt(Math.pow(newPos.x - existingPos.x, 2) + Math.pow(newPos.y - existingPos.y, 2));
+            return dist < MIN_GAP;
+        });
+    };
+
+    const handleDragOver = (e) => {
+        e.preventDefault();
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const { x, y } = getCanvasCoordinates(e, canvas);
+        const layout = getLayout();
+
+        const angle = getAngleFromPoint(x, y, layout.centerX, layout.centerY);
+        const isColliding = checkCollision(angle, layout);
+
+        setPreviewItem({ angle, isColliding });
+    };
+
+    const handleDragLeave = () => {
+        setPreviewItem(null);
+    };
+
+    const handleDropEvent = (e) => {
+        e.preventDefault();
+
+        const canvas = canvasRef.current;
+        const { x, y } = getCanvasCoordinates(e, canvas);
+        const layout = getLayout();
+        const angle = getAngleFromPoint(x, y, layout.centerX, layout.centerY);
+
+        setPreviewItem(null);
+
+        if (checkCollision(angle, layout)) {
+            console.log("Drop prevented: Collision");
+            return;
+        }
+
+        try {
+            const data = JSON.parse(e.dataTransfer.getData("application/json"));
+            if (data && data.id) {
+                if (onDrop) {
+                    onDrop({ id: data.id, angle });
+                }
+            }
+        } catch (err) {
+            console.error("Drop failed", err);
+        }
+    };
+
     const handleCanvasClickEvent = (e) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        const rect = canvas.getBoundingClientRect();
-
-        // Map Click to Canvas Coordinate Space (500x500 base)
-        const x = (e.clientX - rect.left) * (BASE_CONFIG.dimensions.width / rect.width);
-        const y = (e.clientY - rect.top) * (BASE_CONFIG.dimensions.height / rect.height);
+        const { x, y } = getCanvasCoordinates(e, canvas);
 
         console.log(`Canvas Click at: ${x.toFixed(1)}, ${y.toFixed(1)}`);
 
         const layout = getLayout();
 
         // 1. Check if clicked on an existing item
-        // Reduced threshold to allow placing beads closer together
         const CLICK_THRESHOLD = 20;
         let clickedItem = null;
 
@@ -65,18 +126,8 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
 
             if (isNear) {
                 const angle = getAngleFromPoint(x, y, layout.centerX, layout.centerY);
-                const newPos = getPointOnEllipse(angle, layout);
 
-                // Collision Check: Ensure we don't place it on top of another bead
-                const MIN_GAP = 28; // Allow placing beads almost touching (Gold bead ~30px)
-
-                const isTooClose = configuration.some(item => {
-                    const existingPos = getPointOnEllipse(item.angle, layout);
-                    const dist = Math.sqrt(Math.pow(newPos.x - existingPos.x, 2) + Math.pow(newPos.y - existingPos.y, 2));
-                    return dist < MIN_GAP;
-                });
-
-                if (isTooClose) {
+                if (checkCollision(angle, layout)) {
                     console.log("Too close to existing bead");
                 } else {
                     onCanvasClick({ type: 'add', angle });
@@ -101,7 +152,6 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
             canvas.height = height * dpr;
             ctx.scale(dpr, dpr);
 
-            // Set display size
             canvas.style.width = "100%";
             canvas.style.maxWidth = `${width}px`;
             canvas.style.height = "auto";
@@ -112,15 +162,23 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
             try {
                 const layout = getLayout();
 
-                // 1. Prepare Items
                 const positions = configuration.map(item => ({
                     ...item,
                     ...getPointOnEllipse(item.angle, layout)
                 }));
 
+                if (previewItem) {
+                    positions.push({
+                        id: 'PREVIEW_GHOST',
+                        ...getPointOnEllipse(previewItem.angle, layout),
+                        isPreview: true,
+                        isColliding: previewItem.isColliding
+                    });
+                }
+
                 const baseBeadImg = await loadImage(BASE_CONFIG.baseBeadImage);
 
-                // 2. Draw Wire
+                // Draw Wire
                 ctx.beginPath();
                 ctx.ellipse(
                     layout.centerX,
@@ -133,13 +191,21 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
                 ctx.lineWidth = 4;
                 ctx.stroke();
 
-                // 3. Prepare Render Queue
                 const renderQueue = await Promise.all(
                     positions.map(async (pos) => {
                         let img;
                         let size = 30;
+                        let alpha = 1.0;
+                        let filter = "none";
 
-                        if (pos.id) {
+                        if (pos.isPreview) {
+                            img = baseBeadImg;
+                            alpha = 0.5;
+                            if (pos.isColliding) {
+                                // Red tint for invalid drop
+                                filter = "brightness(0.5) sepia(1) hue-rotate(-50deg) saturate(5)";
+                            }
+                        } else if (pos.id) {
                             const compData = COMPONENTS.find(c => c.id === pos.id);
                             if (compData) {
                                 img = await loadImage(compData.image);
@@ -151,25 +217,19 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
                             img = baseBeadImg;
                         }
 
-                        return {
-                            img,
-                            x: pos.x,
-                            y: pos.y,
-                            width: size,
-                            height: size,
-                            uuid: pos.uuid
-                        };
+                        return { img, x: pos.x, y: pos.y, width: size, height: size, uuid: pos.uuid, alpha, filter };
                     })
                 );
 
-                // 4. Sort by Y for depth
                 renderQueue.sort((a, b) => a.y - b.y);
 
-                // 5. Draw Items
                 renderQueue.forEach(item => {
-                    const { img, x, y, width, height } = item;
+                    const { img, x, y, width, height, alpha, filter } = item;
 
                     ctx.save();
+                    ctx.globalAlpha = alpha;
+                    ctx.filter = filter;
+
                     if (img === baseBeadImg) {
                         ctx.beginPath();
                         ctx.arc(x, y, width / 2, 0, Math.PI * 2);
@@ -181,6 +241,18 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
                     }
                     ctx.restore();
                 });
+
+                if (previewItem) {
+                    const snapPos = getPointOnEllipse(previewItem.angle, layout);
+                    ctx.save();
+                    ctx.beginPath();
+                    ctx.moveTo(layout.centerX, layout.centerY);
+                    ctx.lineTo(snapPos.x, snapPos.y);
+                    ctx.strokeStyle = previewItem.isColliding ? 'red' : 'rgba(255, 255, 255, 0.3)';
+                    ctx.setLineDash([5, 5]);
+                    ctx.stroke();
+                    ctx.restore();
+                }
 
             } catch (err) {
                 console.error("Error drawing canvas:", err);
@@ -194,7 +266,7 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
         return () => {
             active = false;
         };
-    }, [configuration, calibration]);
+    }, [configuration, calibration, previewItem]);
 
     useEffect(() => {
         if (onCanvasReady) {
@@ -208,6 +280,9 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
                 ref={canvasRef}
                 className="rounded-lg shadow-2xl"
                 onClick={handleCanvasClickEvent}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDropEvent}
                 style={{ cursor: 'pointer', maxWidth: '100%' }}
             />
             {isDrawing && (
