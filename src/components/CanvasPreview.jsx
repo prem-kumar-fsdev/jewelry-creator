@@ -81,18 +81,80 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
 
         const baseBeadImg = await loadImage(BASE_CONFIG.baseBeadImage);
 
-        // Draw Wire
+        // --- Procedural Cable Chain Rendering ---
+        const rx = layout.radiusX || layout.radius;
+        const ry = layout.radiusY || layout.radius;
+        const cx = layout.centerX;
+        const cy = layout.centerY;
+
+        // Settings for cable chain
+        const linkLength = 10;
+        const linkWidth = 3.5;
+        const linkThickness = 1.5;
+        const numLinks = 180; // Total links around the perimeter
+
+        // Draw links
+        ctx.save();
+        for (let i = 0; i < numLinks; i++) {
+            const t = (i / numLinks) * 2 * Math.PI;
+
+            // Point on ellipse
+            const px = cx + rx * Math.cos(t);
+            const py = cy + ry * Math.sin(t);
+
+            // Tangent angle
+            const dx = -rx * Math.sin(t);
+            const dy = ry * Math.cos(t);
+            const angle = Math.atan2(dy, dx);
+
+            ctx.save();
+            ctx.translate(px, py);
+            ctx.rotate(angle);
+
+            // Alternate between "flat" face-up links and "side" edge-on links
+            if (i % 2 === 0) {
+                // Flat Link (seen from top)
+                ctx.beginPath();
+                ctx.ellipse(0, 0, linkLength / 2, linkWidth / 2, 0, 0, Math.PI * 2);
+
+                // Gold gradient for flat link
+                const grad = ctx.createLinearGradient(-linkLength / 2, -linkWidth / 2, linkLength / 2, linkWidth / 2);
+                grad.addColorStop(0, '#DAA520'); // GoldenRod
+                grad.addColorStop(0.4, '#FFD700'); // Gold
+                grad.addColorStop(0.6, '#FFFACD'); // LemonChiffon (Highlight)
+                grad.addColorStop(1, '#B8860b'); // DarkGoldenRod
+
+                ctx.strokeStyle = grad;
+                ctx.lineWidth = linkThickness;
+                ctx.stroke();
+            } else {
+                // Side Link (seen edge on - looks like a small rectangle/oval)
+                ctx.beginPath();
+                ctx.ellipse(0, 0, linkLength / 2 - 1, linkThickness / 2, 0, 0, Math.PI * 2);
+
+                // Darker gradient for side link to show depth
+                const grad = ctx.createLinearGradient(0, -1, 0, 1);
+                grad.addColorStop(0, '#B8860b');
+                grad.addColorStop(0.5, '#FFD700');
+                grad.addColorStop(1, '#B8860b');
+
+                ctx.fillStyle = grad;
+                ctx.fill();
+            }
+
+            ctx.restore();
+        }
+        ctx.restore();
+
+        // Add shadow behind chain
+        ctx.save();
         ctx.beginPath();
-        ctx.ellipse(
-            layout.centerX,
-            layout.centerY,
-            layout.radiusX || layout.radius,
-            layout.radiusY || layout.radius,
-            0, 0, Math.PI * 2
-        );
-        ctx.strokeStyle = '#d4af37';
-        ctx.lineWidth = 4;
+        ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+        ctx.strokeStyle = 'rgba(0,0,0,0.15)';
+        ctx.lineWidth = linkWidth + 4;
+        ctx.globalCompositeOperation = 'destination-over';
         ctx.stroke();
+        ctx.restore();
 
         // Prepare render queue
         const renderQueue = await Promise.all(
