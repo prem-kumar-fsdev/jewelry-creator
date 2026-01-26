@@ -67,17 +67,46 @@ const JewelryConfigurator = () => {
         }
     };
 
-    const handleAddToCart = () => {
-        if (canvasRef.current) {
+    const [isProcessing, setIsProcessing] = useState(false);
+
+    const handleAddToCart = async () => {
+        if (!canvasRef.current || configuration.length === 0) return;
+
+        setIsProcessing(true);
+        try {
             const imageData = canvasRef.current.toDataURL("image/png");
-            const orderPayload = {
-                baseProductId: BASE_CONFIG.id,
-                configuration: configuration,
-                previewImage: imageData,
-                timestamp: new Date().toISOString(),
-            };
-            console.log("Adding to cart:", orderPayload);
-            alert("Added to cart! Check console for payload.");
+
+            // Call the backend function
+            const response = await fetch('/api/create-checkout', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    baseProductId: BASE_CONFIG.id,
+                    configuration: configuration,
+                    previewImage: imageData, // Send image if you want to store it or use it (backend currently ignores it but good to have)
+                }),
+            });
+
+            const data = await response.json();
+
+            if (!response.ok) {
+                throw new Error(data.error || 'Failed to initiate checkout');
+            }
+
+            if (data.invoice_url) {
+                // Redirect user to Shopify Checkout
+                window.location.href = data.invoice_url;
+            } else {
+                alert("Error: No invoice URL returned from backend.");
+            }
+
+        } catch (error) {
+            console.error("Checkout Error:", error);
+            alert("Checkout Failed: " + error.message);
+        } finally {
+            setIsProcessing(false);
         }
     };
 
@@ -174,6 +203,7 @@ const JewelryConfigurator = () => {
                     onClear={handleClear}
                     onExport={handleExport}
                     onAddToCart={handleAddToCart}
+                    isProcessing={isProcessing}
                 />
             </div>
         </div>

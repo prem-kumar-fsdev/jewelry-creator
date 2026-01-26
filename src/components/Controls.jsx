@@ -8,13 +8,16 @@ const Controls = ({
     onRemove,
     onClear,
     onExport,
-    onAddToCart
+    onAddToCart,
+    isProcessing = false
 }) => {
-    const totalPrice = configuration.reduce((sum, item) => {
+    const BASE_PRICE = 5000;
+    const componentsPrice = configuration.reduce((sum, item) => {
         if (!item.id) return sum;
         const comp = COMPONENTS.find((c) => c.id === item.id);
         return sum + (comp ? comp.price : 0);
     }, 0);
+    const totalPrice = BASE_PRICE + componentsPrice;
 
     const activeItem = activeItemUuid ? configuration.find(i => i.uuid === activeItemUuid) : null;
     const activeComp = activeItem && activeItem.id ? COMPONENTS.find(c => c.id === activeItem.id) : null;
@@ -23,7 +26,11 @@ const Controls = ({
         <div className="controls-panel">
             <div className="panel-header">
                 <h2>Designer</h2>
-                <p className="price-tag">${totalPrice.toFixed(2)}</p>
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                    <span style={{ fontSize: '0.8em', opacity: 0.7 }}>Base: PKR {BASE_PRICE.toLocaleString()}</span>
+                    <span style={{ fontSize: '0.8em', opacity: 0.7 }}>+ Beads: PKR {componentsPrice.toLocaleString()}</span>
+                    <p className="price-tag" style={{ marginTop: '5px' }}>Total: PKR {totalPrice.toLocaleString()}</p>
+                </div>
             </div>
 
             <div className="section">
@@ -71,7 +78,7 @@ const Controls = ({
                         >
                             <img src={comp.image} alt={comp.name} />
                             <span className="comp-name">{comp.name}</span>
-                            <span className="comp-price">+${comp.price}</span>
+                            <span className="comp-price">+PKR {comp.price}</span>
                         </button>
                     ))}
                 </div>
@@ -89,9 +96,9 @@ const Controls = ({
                 <button
                     className="primary-btn"
                     onClick={onAddToCart}
-                    disabled={configuration.length === 0}
+                    disabled={configuration.length === 0 || isProcessing}
                 >
-                    Add to Cart
+                    {isProcessing ? "Processing..." : "Add to Cart"}
                 </button>
             </div>
         </div>
