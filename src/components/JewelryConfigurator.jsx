@@ -144,6 +144,7 @@ const JewelryConfigurator = () => {
                     calibration={calibration}
                     onCanvasClick={handleCanvasClick}
                     onDrop={handleDrop}
+                    onItemMove={handleItemMove}
                 />
 
                 {/* Calibration Controls */}

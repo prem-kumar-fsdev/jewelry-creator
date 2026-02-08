@@ -22,12 +22,13 @@ const loadImage = async (src) => {
     });
 };
 
-const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClick, onDrop }) => {
+const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClick, onDrop, onItemMove }) => {
     const canvasRef = useRef(null);
     const offscreenCanvasRef = useRef(null);
     const baseLayerRef = useRef(null); // Cached base layer ImageData
     const [previewAngle, setPreviewAngle] = useState(null);
     const [previewColliding, setPreviewColliding] = useState(false);
+    const [draggingItem, setDraggingItem] = useState(null); // UUID of bead being dragged
 
     const getLayout = useCallback(() => {
         const layout = { ...BASE_CONFIG.layout };
@@ -298,7 +299,74 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
         }
     };
 
+    const handleMouseDown = (e) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const { x, y } = getCanvasCoordinates(e, canvas);
+        const layout = getLayout();
+
+        const CLICK_THRESHOLD = 20;
+        let clickedItem = null;
+
+        // Check if clicking on an existing bead
+        for (let item of configuration) {
+            const pos = getPointOnEllipse(item.angle, layout);
+            const dist = Math.sqrt(Math.pow(x - pos.x, 2) + Math.pow(y - pos.y, 2));
+            if (dist < CLICK_THRESHOLD) {
+                clickedItem = item;
+                break;
+            }
+        }
+
+        if (clickedItem) {
+            // Start dragging this bead
+            setDraggingItem(clickedItem.uuid);
+            onCanvasClick({ type: 'select', uuid: clickedItem.uuid });
+        }
+    };
+
+    const handleMouseMove = (e) => {
+        if (!draggingItem || !onItemMove) return;
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const { x, y } = getCanvasCoordinates(e, canvas);
+        const layout = getLayout();
+
+        // Calculate new angle based on mouse position
+        const newAngle = getAngleFromPoint(x, y, layout.centerX, layout.centerY);
+
+        // Check collision with other beads (excluding the one being dragged)
+        const MIN_GAP = 25;
+        const newPos = getPointOnEllipse(newAngle, layout);
+        let hasCollision = false;
+
+        for (let item of configuration) {
+            if (item.uuid === draggingItem) continue;
+            const existingPos = getPointOnEllipse(item.angle, layout);
+            const dist = Math.sqrt(Math.pow(newPos.x - existingPos.x, 2) + Math.pow(newPos.y - existingPos.y, 2));
+            if (dist < MIN_GAP) {
+                hasCollision = true;
+                break;
+            }
+        }
+
+        // Only move if no collision
+        if (!hasCollision) {
+            onItemMove(draggingItem, newAngle);
+        }
+    };
+
+    const handleMouseUp = () => {
+        setDraggingItem(null);
+    };
+
     const handleCanvasClickEvent = (e) => {
+        // Only process as a click if we weren't dragging
+        if (draggingItem) return;
+
         const canvas = canvasRef.current;
         if (!canvas) return;
 
@@ -376,10 +444,14 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
                 ref={canvasRef}
                 className="rounded-lg shadow-2xl"
                 onClick={handleCanvasClickEvent}
+                onMouseDown={handleMouseDown}
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+                onMouseLeave={handleMouseUp}
                 onDragOver={handleDragOver}
                 onDragLeave={handleDragLeave}
                 onDrop={handleDropEvent}
-                style={{ cursor: 'pointer', maxWidth: '100%' }}
+                style={{ cursor: draggingItem ? 'grabbing' : 'pointer', maxWidth: '100%' }}
             />
         </div>
     );
