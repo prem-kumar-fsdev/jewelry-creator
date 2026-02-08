@@ -342,10 +342,9 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
         const ctx = canvas.getContext('2d');
         const { width, height } = BASE_CONFIG.dimensions;
 
-        const dpr = window.devicePixelRatio || 1;
-        canvas.width = width * dpr;
-        canvas.height = height * dpr;
-        ctx.scale(dpr, dpr);
+        // Use fixed canvas size (no DPR scaling) to ensure consistent positioning
+        canvas.width = width;
+        canvas.height = height;
 
         canvas.style.width = "100%";
         canvas.style.maxWidth = `${width}px`;
