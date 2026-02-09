@@ -24,51 +24,47 @@ const Controls = ({
 
     return (
         <div className="controls-panel">
-            <div className="panel-header">
-                <h2>Designer</h2>
-                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
-                    <span style={{ fontSize: '0.8em', opacity: 0.7 }}>Base: PKR {BASE_PRICE.toLocaleString()}</span>
-                    <span style={{ fontSize: '0.8em', opacity: 0.7 }}>+ Beads: PKR {componentsPrice.toLocaleString()}</span>
-                    <p className="price-tag" style={{ marginTop: '5px' }}>Total: PKR {totalPrice.toLocaleString()}</p>
+            {/* Product Header */}
+            <div className="product-header">
+                <h1 className="product-title">Custom Gold Bracelet</h1>
+                <div className="product-price">PKR {totalPrice.toLocaleString()}</div>
+                <div className="price-breakdown">
+                    <span>Base: PKR {BASE_PRICE.toLocaleString()}</span>
+                    {componentsPrice > 0 && (
+                        <span>+ Stones: PKR {componentsPrice.toLocaleString()}</span>
+                    )}
                 </div>
             </div>
 
-            <div className="section">
-                <div className="section-header">
-                    <h3>1. Edit Bead</h3>
+            {/* Stone Selection Section */}
+            <div className="option-section">
+                <div className="option-label">
+                    <h3>Stones</h3>
+                    <span className="option-value">
+                        {configuration.length} selected
+                    </span>
                     {configuration.length > 0 && (
-                        <button className="text-btn danger" onClick={onClear}>
+                        <button className="text-btn danger" onClick={onClear} style={{ marginLeft: 'auto' }}>
                             Clear All
                         </button>
                     )}
                 </div>
 
-                {!activeItem ? (
-                    <div className="instruction-box">
-                        <p>Click anywhere on the gold wire to add a bead.</p>
-                        <p>Click on a bead to select it.</p>
-                    </div>
-                ) : (
-                    <div className="selected-item-controls">
-                        <div className="selected-info">
-                            <span>Selected: <strong>{activeComp ? activeComp.name : "Base Gold Bead"}</strong></span>
-                            <button className="text-btn danger" onClick={() => onRemove(activeItem.uuid)}>
-                                Remove Bead
-                            </button>
-                        </div>
+                {activeItem && (
+                    <div className="selected-info">
+                        <span>Editing: <strong>{activeComp ? activeComp.name : "Gold Bead"}</strong></span>
+                        <button className="text-btn danger" onClick={() => onRemove(activeItem.uuid)}>
+                            Remove
+                        </button>
                     </div>
                 )}
-            </div>
 
-            <div className={`section ${!activeItem ? 'disabled' : ''}`}>
-                <h3>2. Choose Stone</h3>
                 <div className="components-grid">
                     {COMPONENTS.map((comp) => (
                         <button
                             key={comp.id}
                             className={`component-btn ${activeItem && activeItem.id === comp.id ? 'active' : ''}`}
                             onClick={() => onSelectStone(comp.id)}
-                            disabled={false} // Always enable dragging
                             title={comp.name}
                             draggable="true"
                             onDragStart={(e) => {
@@ -78,27 +74,51 @@ const Controls = ({
                         >
                             <img src={comp.image} alt={comp.name} />
                             <span className="comp-name">{comp.name}</span>
-                            <span className="comp-price">+PKR {comp.price}</span>
+                            <span className="comp-price">+PKR {comp.price.toLocaleString()}</span>
                         </button>
                     ))}
                 </div>
             </div>
 
-            <div className="actions" style={{ display: 'flex', gap: '1rem' }}>
+            {/* Instructions */}
+            {!activeItem && (
+                <div className="instruction-box">
+                    <p>Click on the gold chain to add a bead.</p>
+                    <p>Click on a bead to select and customize it.</p>
+                    <p>Drag beads to reposition them.</p>
+                </div>
+            )}
+
+            {/* Info Box */}
+            <div className="info-box">
+                <div className="info-box-header">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    <span>Please note that custom jewelry items:</span>
+                </div>
+                <ul>
+                    <li>Are made to order and may take 5-7 business days</li>
+                    <li>Cannot be returned or exchanged</li>
+                    <li>May slightly differ from the preview</li>
+                </ul>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="actions">
                 <button
-                    className="primary-btn"
-                    style={{ background: 'transparent', border: '1px solid var(--primary-color)', color: 'var(--primary-color)' }}
+                    className="secondary-btn"
                     onClick={onExport}
                     disabled={configuration.length === 0}
                 >
-                    Export
+                    Save Design
                 </button>
                 <button
                     className="primary-btn"
                     onClick={onAddToCart}
                     disabled={configuration.length === 0 || isProcessing}
                 >
-                    {isProcessing ? "Processing..." : "Add to Cart"}
+                    {isProcessing ? "Processing..." : "Add To Bag"}
                 </button>
             </div>
         </div>

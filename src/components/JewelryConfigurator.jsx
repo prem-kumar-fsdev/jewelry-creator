@@ -137,62 +137,17 @@ const JewelryConfigurator = () => {
 
     return (
         <div className="configurator-layout">
-            <div className="preview-area" style={{ flexDirection: 'column' }}>
-                <CanvasPreview
-                    configuration={configuration}
-                    onCanvasReady={handleCanvasReady}
-                    calibration={calibration}
-                    onCanvasClick={handleCanvasClick}
-                    onDrop={handleDrop}
-                    onItemMove={handleItemMove}
-                />
-
-                {/* Calibration Controls */}
-                <div style={{
-                    marginTop: '20px',
-                    padding: '15px',
-                    background: 'rgba(0,0,0,0.5)',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    gap: '20px',
-                    color: 'white'
-                }}>
-                    <label>
-                        Radius X: {calibration.radiusX}px
-                        <input
-                            type="range"
-                            name="radiusX"
-                            min="100"
-                            max="300"
-                            value={calibration.radiusX}
-                            onChange={handleCalibrationChange}
-                            style={{ display: 'block', width: '200px' }}
-                        />
-                    </label>
-                    <label>
-                        Radius Y: {calibration.radiusY}px
-                        <input
-                            type="range"
-                            name="radiusY"
-                            min="100"
-                            max="300"
-                            value={calibration.radiusY}
-                            onChange={handleCalibrationChange}
-                            style={{ display: 'block', width: '200px' }}
-                        />
-                    </label>
-                    <label>
-                        Rotation: {calibration.rotation}°
-                        <input
-                            type="range"
-                            name="rotation"
-                            min="-180"
-                            max="180"
-                            value={calibration.rotation}
-                            onChange={handleCalibrationChange}
-                            style={{ display: 'block', width: '200px' }}
-                        />
-                    </label>
+            <div className="preview-area">
+                <div className="canvas-container">
+                    <CanvasPreview
+                        configuration={configuration}
+                        onCanvasReady={handleCanvasReady}
+                        calibration={calibration}
+                        onCanvasClick={handleCanvasClick}
+                        onDrop={handleDrop}
+                        onItemMove={handleItemMove}
+                    />
+                    <div className="image-counter">1 / 1</div>
                 </div>
             </div>
             <div className="sidebar">
