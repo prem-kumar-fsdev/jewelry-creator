@@ -111,9 +111,9 @@ const JewelryConfigurator = () => {
     };
 
     const [calibration, setCalibration] = useState({
-        radiusX: BASE_CONFIG.layout.radiusX,
-        radiusY: BASE_CONFIG.layout.radiusY,
-        rotation: 0, // degrees
+        radiusX: 420,  // Match new config
+        radiusY: 420,
+        rotation: 0,
     });
 
     const handleCalibrationChange = (e) => {
@@ -147,7 +147,7 @@ const JewelryConfigurator = () => {
                         onDrop={handleDrop}
                         onItemMove={handleItemMove}
                     />
-                    <div className="image-counter">1 / 1</div>
+
                 </div>
             </div>
             <div className="sidebar">

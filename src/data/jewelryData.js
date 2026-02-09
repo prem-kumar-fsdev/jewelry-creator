@@ -4,15 +4,15 @@ export const BASE_CONFIG = {
   // image: "/assets/base/bracelet.png", // Deprecated
   baseBeadImage: "/assets/base/gold_bead.png",
   dimensions: {
-    width: 500,
-    height: 500,
+    width: 1000,
+    height: 1000,
   },
   layout: {
     type: "ellipse",
-    centerX: 250,
-    centerY: 250,
-    radiusX: 185,
-    radiusY: 185,
+    centerX: 500,
+    centerY: 500,
+    radiusX: 420,
+    radiusY: 420,
     // 0 is right (3 o'clock), -PI/2 is top (12 o'clock).
     startAngle: -Math.PI / 2,
     endAngle: Math.PI * 1.5,

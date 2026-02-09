@@ -32,6 +32,10 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
 
     const getLayout = useCallback(() => {
         const layout = { ...BASE_CONFIG.layout };
+        // Ensure center is dynamic based on canvas size
+        layout.centerX = BASE_CONFIG.dimensions.width / 2;
+        layout.centerY = BASE_CONFIG.dimensions.height / 2;
+
         if (calibration) {
             layout.radiusX = calibration.radiusX;
             layout.radiusY = calibration.radiusY;
@@ -44,14 +48,17 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
 
     const getCanvasCoordinates = (e, canvas) => {
         const rect = canvas.getBoundingClientRect();
-        const x = (e.clientX - rect.left) * (BASE_CONFIG.dimensions.width / rect.width);
-        const y = (e.clientY - rect.top) * (BASE_CONFIG.dimensions.height / rect.height);
+        // Scale mouse coordinates to match canvas internal resolution
+        const scaleX = canvas.width / rect.width;
+        const scaleY = canvas.height / rect.height;
+        const x = (e.clientX - rect.left) * scaleX;
+        const y = (e.clientY - rect.top) * scaleY;
         return { x, y };
     };
 
     const checkCollision = useCallback((angle, layout) => {
         const newPos = getPointOnEllipse(angle, layout);
-        const MIN_GAP = 25;
+        const MIN_GAP = 60; // Increased for larger beads
 
         return configuration.some(item => {
             const existingPos = getPointOnEllipse(item.angle, layout);
@@ -83,16 +90,17 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
         const baseBeadImg = await loadImage(BASE_CONFIG.baseBeadImage);
 
         // --- Procedural Cable Chain Rendering ---
+        // --- Procedural Cable Chain Rendering ---
         const rx = layout.radiusX || layout.radius;
         const ry = layout.radiusY || layout.radius;
         const cx = layout.centerX;
         const cy = layout.centerY;
 
-        // Settings for cable chain
-        const linkLength = 10;
-        const linkWidth = 3.5;
-        const linkThickness = 1.5;
-        const numLinks = 180; // Total links around the perimeter
+        // Settings for cable chain - SCALED UP for visibility
+        const linkLength = 16;  // was 10
+        const linkWidth = 6;    // was 3.5
+        const linkThickness = 2.5; // was 1.5
+        const numLinks = 280;   // Increased to cover larger circumference
 
         // Draw links
         ctx.save();
@@ -131,10 +139,10 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
             } else {
                 // Side Link (seen edge on - looks like a small rectangle/oval)
                 ctx.beginPath();
-                ctx.ellipse(0, 0, linkLength / 2 - 1, linkThickness / 2, 0, 0, Math.PI * 2);
+                ctx.ellipse(0, 0, linkLength / 2 - 1.5, linkThickness / 2, 0, 0, Math.PI * 2);
 
                 // Darker gradient for side link to show depth
-                const grad = ctx.createLinearGradient(0, -1, 0, 1);
+                const grad = ctx.createLinearGradient(0, -1.5, 0, 1.5);
                 grad.addColorStop(0, '#B8860b');
                 grad.addColorStop(0.5, '#FFD700');
                 grad.addColorStop(1, '#B8860b');
@@ -152,7 +160,7 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
         ctx.beginPath();
         ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
         ctx.strokeStyle = 'rgba(0,0,0,0.15)';
-        ctx.lineWidth = linkWidth + 4;
+        ctx.lineWidth = linkWidth + 6;
         ctx.globalCompositeOperation = 'destination-over';
         ctx.stroke();
         ctx.restore();
@@ -161,13 +169,13 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
         const renderQueue = await Promise.all(
             positions.map(async (pos) => {
                 let img;
-                let size = 30;
+                let size = 50; // Larger base bead size (was 30)
 
                 if (pos.id) {
                     const compData = COMPONENTS.find(c => c.id === pos.id);
                     if (compData) {
                         img = await loadImage(compData.image);
-                        size = compData.width;
+                        size = compData.width * 1.6; // Scale up stone images significantly
                     } else {
                         img = baseBeadImg;
                     }
@@ -189,8 +197,10 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
             ctx.save();
             if (isBaseBead) {
                 ctx.beginPath();
-                ctx.arc(x, y, width / 2, 0, Math.PI * 2);
-                ctx.closePath();
+                ctx.arc(x, y, width / 2, 0, Math.PI * 2); // Base bead is circle
+                ctx.fillStyle = '#D4AF37'; // Fallback color
+                ctx.fill();
+                // Draw image over if available
                 ctx.clip();
             }
             ctx.drawImage(img, x - width / 2, y - height / 2, width, height);
@@ -222,32 +232,27 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
             ctx.beginPath();
             ctx.moveTo(layout.centerX, layout.centerY);
             ctx.lineTo(snapPos.x, snapPos.y);
-            ctx.strokeStyle = previewColliding ? 'rgba(255, 0, 0, 0.5)' : 'rgba(255, 255, 255, 0.3)';
-            ctx.setLineDash([5, 5]);
-            ctx.lineWidth = 2;
+            ctx.strokeStyle = previewColliding ? 'rgba(255, 0, 0, 0.5)' : 'rgba(0, 0, 0, 0.2)';
+            ctx.setLineDash([8, 8]);
+            ctx.lineWidth = 3;
             ctx.stroke();
             ctx.restore();
 
             // Draw ghost bead
             const baseBeadImg = imageCache.get(BASE_CONFIG.baseBeadImage);
             if (baseBeadImg) {
-                const size = 30;
+                const size = 50; // Match base bead size
                 ctx.save();
-                ctx.globalAlpha = 0.5;
+                ctx.globalAlpha = 0.6;
 
-                ctx.beginPath();
-                ctx.arc(snapPos.x, snapPos.y, size / 2, 0, Math.PI * 2);
-                ctx.closePath();
-                ctx.clip();
+                ctx.drawImage(baseBeadImg, snapPos.x - size / 2, snapPos.y - size / 2, size, size);
 
                 if (previewColliding) {
-                    // Draw red overlay for collision
-                    ctx.drawImage(baseBeadImg, snapPos.x - size / 2, snapPos.y - size / 2, size, size);
+                    ctx.globalCompositeOperation = 'source-atop';
                     ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
-                    ctx.fill();
-                } else {
-                    ctx.drawImage(baseBeadImg, snapPos.x - size / 2, snapPos.y - size / 2, size, size);
+                    ctx.fillRect(snapPos.x - size / 2, snapPos.y - size / 2, size, size);
                 }
+
                 ctx.restore();
             }
         }
@@ -306,7 +311,7 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
         const { x, y } = getCanvasCoordinates(e, canvas);
         const layout = getLayout();
 
-        const CLICK_THRESHOLD = 20;
+        const CLICK_THRESHOLD = 45; // Increased for larger beads
         let clickedItem = null;
 
         // Check if clicking on an existing bead
@@ -339,7 +344,7 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
         const newAngle = getAngleFromPoint(x, y, layout.centerX, layout.centerY);
 
         // Check collision with other beads (excluding the one being dragged)
-        const MIN_GAP = 25;
+        const MIN_GAP = 60; // Increased for larger beads
         const newPos = getPointOnEllipse(newAngle, layout);
         let hasCollision = false;
 
@@ -373,7 +378,7 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
         const { x, y } = getCanvasCoordinates(e, canvas);
         const layout = getLayout();
 
-        const CLICK_THRESHOLD = 20;
+        const CLICK_THRESHOLD = 45; // Increased
         let clickedItem = null;
 
         for (let item of configuration) {
@@ -388,7 +393,7 @@ const CanvasPreview = ({ configuration, onCanvasReady, calibration, onCanvasClic
         if (clickedItem) {
             onCanvasClick({ type: 'select', uuid: clickedItem.uuid });
         } else {
-            const isNear = isClickNearEllipse(x, y, layout, 40);
+            const isNear = isClickNearEllipse(x, y, layout, 80); // Increased interaction area
 
             if (isNear) {
                 const angle = getAngleFromPoint(x, y, layout.centerX, layout.centerY);
