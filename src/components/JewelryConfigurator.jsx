@@ -22,6 +22,8 @@ const JewelryConfigurator = () => {
                 uuid: generateUuid(),
                 id: null, // null = base bead
                 angle: clickData.angle,
+                rotation: 0, // stone self-rotation in radians
+                mirrored: false, // horizontal flip
             };
             setConfiguration(prev => [...prev, newItem]);
             setActiveItemUuid(newItem.uuid);
@@ -33,6 +35,18 @@ const JewelryConfigurator = () => {
     const handleItemMove = (uuid, newAngle) => {
         setConfiguration(prev => prev.map(item =>
             item.uuid === uuid ? { ...item, angle: newAngle } : item
+        ));
+    };
+
+    const handleItemRotate = (uuid, newRotation) => {
+        setConfiguration(prev => prev.map(item =>
+            item.uuid === uuid ? { ...item, rotation: newRotation } : item
+        ));
+    };
+
+    const handleItemMirror = (uuid) => {
+        setConfiguration(prev => prev.map(item =>
+            item.uuid === uuid ? { ...item, mirrored: !item.mirrored } : item
         ));
     };
 
@@ -130,6 +144,8 @@ const JewelryConfigurator = () => {
             uuid: generateUuid(),
             id: dropData.id,
             angle: dropData.angle,
+            rotation: 0,
+            mirrored: false,
         };
         setConfiguration(prev => [...prev, newItem]);
         setActiveItemUuid(newItem.uuid);
@@ -137,61 +153,19 @@ const JewelryConfigurator = () => {
 
     return (
         <div className="configurator-layout">
-            <div className="preview-area" style={{ flexDirection: 'column' }}>
-                <CanvasPreview
-                    configuration={configuration}
-                    onCanvasReady={handleCanvasReady}
-                    calibration={calibration}
-                    onCanvasClick={handleCanvasClick}
-                    onDrop={handleDrop}
-                />
+            <div className="preview-area">
+                <div className="canvas-container">
+                    <CanvasPreview
+                        configuration={configuration}
+                        onCanvasReady={handleCanvasReady}
+                        calibration={calibration}
+                        onCanvasClick={handleCanvasClick}
+                        onDrop={handleDrop}
+                        onItemMove={handleItemMove}
+                        onItemRotate={handleItemRotate}
+                        onItemMirror={handleItemMirror}
+                    />
 
-                {/* Calibration Controls */}
-                <div style={{
-                    marginTop: '20px',
-                    padding: '15px',
-                    background: 'rgba(0,0,0,0.5)',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    gap: '20px',
-                    color: 'white'
-                }}>
-                    <label>
-                        Radius X: {calibration.radiusX}px
-                        <input
-                            type="range"
-                            name="radiusX"
-                            min="100"
-                            max="300"
-                            value={calibration.radiusX}
-                            onChange={handleCalibrationChange}
-                            style={{ display: 'block', width: '200px' }}
-                        />
-                    </label>
-                    <label>
-                        Radius Y: {calibration.radiusY}px
-                        <input
-                            type="range"
-                            name="radiusY"
-                            min="100"
-                            max="300"
-                            value={calibration.radiusY}
-                            onChange={handleCalibrationChange}
-                            style={{ display: 'block', width: '200px' }}
-                        />
-                    </label>
-                    <label>
-                        Rotation: {calibration.rotation}°
-                        <input
-                            type="range"
-                            name="rotation"
-                            min="-180"
-                            max="180"
-                            value={calibration.rotation}
-                            onChange={handleCalibrationChange}
-                            style={{ display: 'block', width: '200px' }}
-                        />
-                    </label>
                 </div>
             </div>
             <div className="sidebar">

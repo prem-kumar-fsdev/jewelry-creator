@@ -5,10 +5,6 @@ import "./App.css";
 function App() {
   return (
     <div className="app-container">
-      <header className="app-header">
-        <h1>LUMIÈRE</h1>
-        <p>Custom Jewelry Atelier</p>
-      </header>
       <main>
         <JewelryConfigurator />
       </main>
