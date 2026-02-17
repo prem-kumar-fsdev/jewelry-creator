@@ -35,6 +35,15 @@ export default async function handler(req, res) {
       "amethyst": 4500,
       "pearl": 3000,
       "jade": 5500,
+      "1st_stone": 2250,
+      "2nd_stone": 2500,
+      "3rd_stone": 2750,
+      "4th_stone": 3000,
+      "5th_stone": 3250,
+      "6th_stone": 3500,
+      "7th_stone": 3750,
+      "8th_stone": 4000,
+      "9th_stone": 4250,
       // Fallback for unknown items
       "default": 1000 
     };
