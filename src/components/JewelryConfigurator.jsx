@@ -22,6 +22,8 @@ const JewelryConfigurator = () => {
                 uuid: generateUuid(),
                 id: null, // null = base bead
                 angle: clickData.angle,
+                rotation: 0, // stone self-rotation in radians
+                mirrored: false, // horizontal flip
             };
             setConfiguration(prev => [...prev, newItem]);
             setActiveItemUuid(newItem.uuid);
@@ -33,6 +35,18 @@ const JewelryConfigurator = () => {
     const handleItemMove = (uuid, newAngle) => {
         setConfiguration(prev => prev.map(item =>
             item.uuid === uuid ? { ...item, angle: newAngle } : item
+        ));
+    };
+
+    const handleItemRotate = (uuid, newRotation) => {
+        setConfiguration(prev => prev.map(item =>
+            item.uuid === uuid ? { ...item, rotation: newRotation } : item
+        ));
+    };
+
+    const handleItemMirror = (uuid) => {
+        setConfiguration(prev => prev.map(item =>
+            item.uuid === uuid ? { ...item, mirrored: !item.mirrored } : item
         ));
     };
 
@@ -130,6 +144,8 @@ const JewelryConfigurator = () => {
             uuid: generateUuid(),
             id: dropData.id,
             angle: dropData.angle,
+            rotation: 0,
+            mirrored: false,
         };
         setConfiguration(prev => [...prev, newItem]);
         setActiveItemUuid(newItem.uuid);
@@ -146,6 +162,8 @@ const JewelryConfigurator = () => {
                         onCanvasClick={handleCanvasClick}
                         onDrop={handleDrop}
                         onItemMove={handleItemMove}
+                        onItemRotate={handleItemRotate}
+                        onItemMirror={handleItemMirror}
                     />
 
                 </div>

@@ -86,6 +86,9 @@ const Controls = ({
                     <p>Click on the gold chain to add a bead.</p>
                     <p>Click on a bead to select and customize it.</p>
                     <p>Drag beads to reposition them.</p>
+                    <p>Right-click + drag a stone to rotate it.</p>
+                    <p>Double-click a stone to mirror it.</p>
+                    <p style={{ fontSize: '0.7rem', color: 'var(--text-muted)' }}>On mobile: long-press to rotate, double-tap to mirror.</p>
                 </div>
             )}
 
