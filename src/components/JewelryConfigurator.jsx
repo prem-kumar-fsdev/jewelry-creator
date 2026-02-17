@@ -147,7 +147,7 @@ const JewelryConfigurator = () => {
                         onDrop={handleDrop}
                         onItemMove={handleItemMove}
                     />
-                    <div className="image-counter">1 / 1</div>
+
                 </div>
             </div>
             <div className="sidebar">
