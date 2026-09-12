@@ -1,29 +1,82 @@
 import React, { useState, useRef } from "react";
 import CanvasPreview from "./CanvasPreview";
 import Controls from "./Controls";
-import { BASE_CONFIG } from "../data/jewelryData";
+import Earrings3DStudio, { EARRING_STYLES } from "./Earrings3DStudio";
+import { COMPONENTS } from "../data/jewelryData";
 
-const JewelryConfigurator = () => {
-    // Configuration is now an array of objects: { id: string, angle: number, uuid: string }
+class StudioErrorBoundary extends React.Component {
+    constructor(props) {
+        super(props);
+        this.state = { hasError: false, error: null };
+    }
+    static getDerivedStateFromError(error) {
+        return { hasError: true, error };
+    }
+    componentDidCatch(error, errorInfo) {
+        console.error("3D Studio Crash:", error, errorInfo);
+    }
+    render() {
+        if (this.state.hasError) {
+            return (
+                <div style={{ position: 'absolute', inset: 0, background: '#1a0000', color: '#ff4444', padding: '2rem', zIndex: 9999, overflow: 'auto' }}>
+                    <h3>3D Studio Render Error</h3>
+                    <pre style={{ fontSize: '11px', whiteSpace: 'pre-wrap' }}>{this.state.error?.stack || this.state.error?.message}</pre>
+                </div>
+            );
+        }
+        return this.props.children;
+    }
+}
+
+const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
+    const isEarring = variantConfig.type === 'earrings';
+
     const [configuration, setConfiguration] = useState([]);
     const [activeItemUuid, setActiveItemUuid] = useState(null);
+    const [selectedMetal, setSelectedMetal] = useState("gold");
+    const [selectedChainStyle, setSelectedChainStyle] = useState("cable");
+    const [selectedBackdrop, setSelectedBackdrop] = useState("velvet-emerald");
+    const [selectedEarringStyle, setSelectedEarringStyle] = useState("baroque-larimar");
+    const [earringStudioMode, setEarringStudioMode] = useState("3d"); // '3d' or '2d'
+    const [earringChain, setEarringChain] = useState([]);
+
     const canvasRef = useRef(null);
 
-    // Initial load - maybe add some default beads? 
-    // Let's start empty for "custom" feel, or maybe 4 balanced ones.
-
-    // Helper to generate unique ID
+    const is3DEarring = isEarring && earringStudioMode === '3d';
     const generateUuid = () => Math.random().toString(36).substr(2, 9);
 
+    const handleAttachEarringStone = (stoneId) => {
+        if (earringChain.length >= 6) {
+            alert("Maximum cascade tiers reached (6 tiers).");
+            return;
+        }
+        setEarringChain(prev => [...prev, stoneId]);
+    };
+
+    const handleRemoveLastEarringStone = () => {
+        setEarringChain(prev => prev.slice(0, -1));
+    };
+
+    const handleRemoveEarringStoneAtIndex = (index) => {
+        setEarringChain(prev => prev.filter((_, idx) => idx !== index));
+    };
+
+    const handleResetEarringChain = () => {
+        setEarringChain([]);
+    };
+
     const handleCanvasClick = (clickData) => {
-        // clickData contains { type: 'add'|'select', ... }
         if (clickData.type === 'add') {
+            if (configuration.length >= (variantConfig.maxComponents || 16)) {
+                return;
+            }
             const newItem = {
                 uuid: generateUuid(),
                 id: null, // null = base bead
                 angle: clickData.angle,
-                rotation: 0, // stone self-rotation in radians
-                mirrored: false, // horizontal flip
+                side: clickData.side || 'left',
+                rotation: 0,
+                mirrored: false,
             };
             setConfiguration(prev => [...prev, newItem]);
             setActiveItemUuid(newItem.uuid);
@@ -75,7 +128,8 @@ const JewelryConfigurator = () => {
         if (canvasRef.current) {
             const url = canvasRef.current.toDataURL("image/png");
             const link = document.createElement("a");
-            link.download = "my-custom-jewelry.png";
+            const styleTag = is3DEarring ? `-${selectedEarringStyle}` : '';
+            link.download = `my-custom-${variantConfig.type}${styleTag}-${selectedMetal}.png`;
             link.href = url;
             link.click();
         }
@@ -84,22 +138,33 @@ const JewelryConfigurator = () => {
     const [isProcessing, setIsProcessing] = useState(false);
 
     const handleAddToCart = async () => {
-        if (!canvasRef.current || configuration.length === 0) return;
+        if (!canvasRef.current || (!is3DEarring && configuration.length === 0)) return;
 
         setIsProcessing(true);
         try {
             const imageData = canvasRef.current.toDataURL("image/png");
 
-            // Call the backend function
             const response = await fetch('/api/create-checkout', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    baseProductId: BASE_CONFIG.id,
-                    configuration: configuration,
-                    previewImage: imageData, // Send image if you want to store it or use it (backend currently ignores it but good to have)
+                    baseProductId: variantConfig.id,
+                    jewelryType: variantConfig.type,
+                    metal: selectedMetal,
+                    chainStyle: isEarring ? selectedEarringStyle : selectedChainStyle,
+                    earringStyle: selectedEarringStyle,
+                    configuration: is3DEarring
+                        ? [
+                            { id: selectedEarringStyle, name: EARRING_STYLES[selectedEarringStyle]?.name || "Custom 3D Earrings" },
+                            ...earringChain.map(id => {
+                                const c = COMPONENTS.find(item => item.id === id);
+                                return { id, name: c ? `${c.name} (Chain Tier)` : id };
+                            })
+                          ]
+                        : configuration,
+                    previewImage: imageData,
                 }),
             });
 
@@ -110,7 +175,6 @@ const JewelryConfigurator = () => {
             }
 
             if (data.invoice_url) {
-                // Redirect user to Shopify Checkout
                 window.location.href = data.invoice_url;
             } else {
                 alert("Error: No invoice URL returned from backend.");
@@ -124,26 +188,13 @@ const JewelryConfigurator = () => {
         }
     };
 
-    const [calibration, setCalibration] = useState({
-        radiusX: BASE_CONFIG.layout.radiusX,
-        radiusY: BASE_CONFIG.layout.radiusY,
-        rotation: 0, // degrees
-    });
-
-    const handleCalibrationChange = (e) => {
-        const { name, value } = e.target;
-        setCalibration(prev => ({
-            ...prev,
-            [name]: parseFloat(value)
-        }));
-    };
-
     const handleDrop = (dropData) => {
-        // dropData = { id, angle }
+        if (configuration.length >= (variantConfig.maxComponents || 16)) return;
         const newItem = {
             uuid: generateUuid(),
             id: dropData.id,
             angle: dropData.angle,
+            side: dropData.side || 'left',
             rotation: 0,
             mirrored: false,
         };
@@ -154,24 +205,106 @@ const JewelryConfigurator = () => {
     return (
         <div className="configurator-layout">
             <div className="preview-area">
-                <div className="canvas-container">
+                {/* Animated studio background overlay */}
+                <div className="studio-ambient-glow" />
+                <div className="studio-vignette-frame" />
+
+                {/* Studio Watermark & Mode Switcher Header */}
+                <div className="studio-top-controls">
+                    <div className="studio-watermark">
+                        <span className="watermark-icon">◇</span>
+                        <span className="watermark-text">3D ATELIER STUDIO</span>
+                    </div>
+
+                    {/* Mode Toggle for Earrings */}
+                    {isEarring && (
+                        <div className="studio-mode-toggle">
+                            <button
+                                type="button"
+                                className={`mode-toggle-btn ${earringStudioMode === '3d' ? 'active' : ''}`}
+                                onClick={() => setEarringStudioMode('3d')}
+                            >
+                                <span className="mode-icon">🌟</span>
+                                <span className="mode-label">3D Real Physics</span>
+                            </button>
+                            <button
+                                type="button"
+                                className={`mode-toggle-btn ${earringStudioMode === '2d' ? 'active' : ''}`}
+                                onClick={() => setEarringStudioMode('2d')}
+                            >
+                                <span className="mode-icon">📐</span>
+                                <span className="mode-label">2D Canvas</span>
+                            </button>
+                        </div>
+                    )}
+                </div>
+
+                {/* Viewport: Either 3D Three.js Earrings Studio OR 2D Canvas */}
+                {is3DEarring && isActive ? (
+                    <StudioErrorBoundary>
+                        <Earrings3DStudio
+                            selectedMetal={selectedMetal}
+                            selectedBackdrop={selectedBackdrop}
+                            earringStyle={selectedEarringStyle}
+                            attachedChain={earringChain}
+                            onAttachStone={handleAttachEarringStone}
+                            onRemoveLastStone={handleRemoveLastEarringStone}
+                            onResetChain={handleResetEarringChain}
+                            onCanvasReady={handleCanvasReady}
+                        />
+                    </StudioErrorBoundary>
+                ) : (
                     <CanvasPreview
+                        variantConfig={variantConfig}
                         configuration={configuration}
+                        selectedMetal={selectedMetal}
+                        selectedChainStyle={selectedChainStyle}
+                        selectedBackdrop={selectedBackdrop}
                         onCanvasReady={handleCanvasReady}
-                        calibration={calibration}
                         onCanvasClick={handleCanvasClick}
                         onDrop={handleDrop}
                         onItemMove={handleItemMove}
                         onItemRotate={handleItemRotate}
                         onItemMirror={handleItemMirror}
                     />
+                )}
 
-                </div>
+                {/* Floating Summary Bar at Bottom (2D Canvas only) */}
+                {!is3DEarring && (
+                    <div className="preview-summary-bar">
+                        <span className="summary-badge metal-badge">
+                            ✨ {selectedMetal === 'gold' ? '18k Yellow Gold' : selectedMetal === 'roseGold' ? '18k Rose Gold' : 'Platinum White Gold'}
+                        </span>
+                        <span className="summary-badge style-badge">
+                            ⛓️ {selectedChainStyle === 'cable' ? 'Luxury Cable' : selectedChainStyle === 'cuban' ? 'Diamond Cuban' : selectedChainStyle === 'rope' ? 'Twisted Rope' : 'Elongated Clip'}
+                        </span>
+                        <span className="summary-badge count-badge">
+                            💎 {configuration.length} {configuration.length === 1 ? 'Stone Placed' : 'Stones Placed'}
+                        </span>
+                    </div>
+                )}
             </div>
+
+            {/* Sidebar Controls */}
             <div className="sidebar">
                 <Controls
+                    variantConfig={variantConfig}
                     configuration={configuration}
                     activeItemUuid={activeItemUuid}
+                    selectedMetal={selectedMetal}
+                    onSelectMetal={setSelectedMetal}
+                    selectedChainStyle={selectedChainStyle}
+                    onSelectChainStyle={setSelectedChainStyle}
+                    selectedBackdrop={selectedBackdrop}
+                    onSelectBackdrop={setSelectedBackdrop}
+                    selectedEarringStyle={selectedEarringStyle}
+                    onSelectEarringStyle={setSelectedEarringStyle}
+                    earringStudioMode={earringStudioMode}
+                    earringChain={earringChain}
+                    onAttachEarringStone={handleAttachEarringStone}
+                    onRemoveLastEarringStone={handleRemoveLastEarringStone}
+                    onRemoveEarringStoneAtIndex={handleRemoveEarringStoneAtIndex}
+                    onResetEarringChain={handleResetEarringChain}
                     onSelectStone={handleSelectStone}
                     onRemove={handleRemove}
                     onClear={handleClear}
