@@ -1,10 +1,19 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { COMPONENTS, METALS, CHAIN_STYLES, BACKDROPS } from "../data/jewelryData";
 import { getPointOnLayout, getAngleFromPoint, isClickNearEllipse } from "../utils/geometry";
+import { Earring2DPhysicsSystem } from "../utils/earrings2DPhysics";
 import {
     drawPhotorealisticChain,
     drawLuxuryClaspAndEndCaps,
     drawLuxuryEarringStud,
+    drawFrenchEarHook,
+    drawEarPost,
+    drawEarWire,
+    drawArticulatedJumpRing,
+    drawProngLarimarCabochon,
+    drawProngKeshiPearl,
+    drawProngBaroqueCoinPearl,
+    drawCustomTierElement,
     drawJumpRingAndBail,
     drawSparkle,
     sampleEquidistantEllipse,
@@ -13,7 +22,7 @@ import {
     LUXURY_METALS
 } from "../utils/photorealisticRenderer";
 
-// Image cache - persists across renders
+// Global image cache to eliminate re-fetching
 const imageCache = new Map();
 
 const loadImage = async (src) => {
@@ -33,12 +42,78 @@ const loadImage = async (src) => {
     });
 };
 
+/**
+ * Configure articulated drop segments based on selected atelier style and attached tiers
+ */
+const get2DEarringSegments = (styleKey = 'baroque-larimar', chainItems = [], configItems = []) => {
+    const rawTiers = chainItems.length > 0
+        ? chainItems
+        : configItems.filter(c => c.id).map(c => c.id);
+
+    // Each tier pearl has radius 14px.
+    const tiers = rawTiers.map((id, idx) => ({
+        type: 'tier',
+        id,
+        // First tier hangs below Baroque Coin (length = 45). Subsequent tiers (length = 33).
+        length: idx === 0 ? 45 : 33,
+        mass: 1.05
+    }));
+
+    if (styleKey === 'royal-chandelier') {
+        return [
+            { type: 'diamond-stud', length: 16, mass: 0.5, size: 22 },
+            { type: 'sapphire-briolette', length: 36, mass: 0.85, width: 22, height: 36 },
+            { type: 'keshi', length: 48, mass: 1.8, width: 24, height: 42 },
+            ...tiers
+        ];
+    }
+    if (styleKey === 'solitaire-drop') {
+        return [
+            { type: 'huggie-link', length: 16, mass: 0.5, size: 22 },
+            { type: 'baroque-coin', length: 45, mass: 2.2, width: 46, height: 50 },
+            ...tiers
+        ];
+    }
+    if (styleKey === 'amethyst-cascade') {
+        return [
+            { type: 'amethyst-collet', length: 18, mass: 0.6, size: 26 },
+            { type: 'keshi', length: 37, mass: 0.85, width: 22, height: 38 },
+            { type: 'baroque-coin', length: 50, mass: 2.2, width: 48, height: 52 },
+            ...tiers
+        ];
+    }
+    if (styleKey === 'emerald-cabochon') {
+        return [
+            { type: 'emerald-collet', length: 18, mass: 0.6, size: 26 },
+            { type: 'keshi', length: 37, mass: 0.85, width: 22, height: 38 },
+            { type: 'baroque-coin', length: 50, mass: 2.2, width: 48, height: 52 },
+            ...tiers
+        ];
+    }
+
+    // Default 'baroque-larimar' (Fine jewelry reference piece):
+    // 1. Hook (r=3.8) -> Larimar (r=13.5): length = 18px
+    // 2. Larimar (r=13.5) -> Keshi (hh=19): length = 37px (connected by 1 gold hinge)
+    // 3. Keshi (hh=19) -> Baroque Coin (hh=26): length = 50px (connected by 1 gold hinge)
+    // Exactly ONE single gold hinge between each pearl, completely uniform 5px clearance!
+    return [
+        { type: 'larimar', length: 18, mass: 0.6, size: 26 },
+        { type: 'keshi', length: 37, mass: 0.85, width: 22, height: 38 },
+        { type: 'baroque-coin', length: 50, mass: 2.4, width: 48, height: 52 },
+        ...tiers
+    ];
+};
+
 const CanvasPreview = ({
     variantConfig,
-    configuration,
+    configuration = [],
     selectedMetal = "gold",
     selectedChainStyle = "cable",
     selectedBackdrop = "velvet-emerald",
+    selectedEarringStyle = "baroque-larimar",
+    selectedEarringHardware = "hook",
+    earringChain = [],
+    onAttachEarringStone,
     onCanvasReady,
     calibration,
     onCanvasClick,
@@ -50,13 +125,22 @@ const CanvasPreview = ({
     const containerRef = useRef(null);
     const canvasRef = useRef(null);
 
+    const isEarring = variantConfig?.type === 'earrings';
+
     const [previewAngle, setPreviewAngle] = useState(null);
     const [previewSide, setPreviewSide] = useState('left');
     const [previewColliding, setPreviewColliding] = useState(false);
     const [draggingItem, setDraggingItem] = useState(null);
     const [canvasSize, setCanvasSize] = useState({ width: 800, height: 700 });
 
-    // Rotation state
+    // 2D Articulated Physics Systems for Earrings
+    const leftPhysicsRef = useRef(null);
+    const rightPhysicsRef = useRef(null);
+    const activePhysicsDraggingRef = useRef(null);
+    const animationFrameIdRef = useRef(null);
+    const lastAnimTimeRef = useRef(performance.now());
+
+    // Rotation state (for necklace/bracelet)
     const rotatingItemRef = useRef(null);
     const rotateStartXRef = useRef(0);
     const rotateStartRotationRef = useRef(0);
@@ -148,10 +232,45 @@ const CanvasPreview = ({
         });
     }, [configuration, getLayout]);
 
-    // ─── 3D Three.js Studio Scene Lifecycle ──────────────────────────────────
-    // Removed per user request. We now use a simple 2D luxury backdrop.
+    // Preload tier images
+    useEffect(() => {
+        if (!earringChain || earringChain.length === 0) return;
+        earringChain.forEach(id => {
+            const comp = COMPONENTS.find(c => c.id === id);
+            if (comp && comp.image) {
+                loadImage(comp.image).catch(() => {});
+            }
+        });
+    }, [earringChain]);
 
-    // ResizeObserver: tracks the container and syncs canvas
+    // Initialize & sync 2D Earring Physics Systems
+    useEffect(() => {
+        if (!isEarring) return;
+
+        const layout = getLayout();
+        const leftAnchor = layout.leftCenter || { x: 165, y: 75 };
+        const rightAnchor = layout.rightCenter || { x: 335, y: 75 };
+
+        const segments = get2DEarringSegments(selectedEarringStyle, earringChain, configuration);
+
+        if (!leftPhysicsRef.current) {
+            leftPhysicsRef.current = new Earring2DPhysicsSystem(leftAnchor, segments);
+            leftPhysicsRef.current.phaseOffset = 0;
+        } else {
+            leftPhysicsRef.current.setAnchor(leftAnchor.x, leftAnchor.y);
+            leftPhysicsRef.current.updateChain(segments);
+        }
+
+        if (!rightPhysicsRef.current) {
+            rightPhysicsRef.current = new Earring2DPhysicsSystem(rightAnchor, segments);
+            rightPhysicsRef.current.phaseOffset = Math.PI * 0.45; // slight organic phase difference
+        } else {
+            rightPhysicsRef.current.setAnchor(rightAnchor.x, rightAnchor.y);
+            rightPhysicsRef.current.updateChain(segments);
+        }
+    }, [isEarring, selectedEarringStyle, earringChain, configuration, getLayout]);
+
+    // ResizeObserver: tracks the container size
     useEffect(() => {
         const container = containerRef.current;
         if (!container) return;
@@ -160,9 +279,7 @@ const CanvasPreview = ({
             for (const entry of entries) {
                 const { width, height } = entry.contentRect;
                 if (width > 0 && height > 0) {
-                    const w = Math.round(width);
-                    const h = Math.round(height);
-                    setCanvasSize({ width: w, height: h });
+                    setCanvasSize({ width: Math.round(width), height: Math.round(height) });
                 }
             }
         });
@@ -170,8 +287,60 @@ const CanvasPreview = ({
         return () => observer.disconnect();
     }, []);
 
-    // ─── Render Photorealistic Jewelry on Overlay Canvas ───────────────────────
-    const renderJewelry = useCallback(async () => {
+    // ─── Drawing Routine for an Articulated Drop Earring ──────────────────────────
+    const drawArticulatedEarring = useCallback((ctx, physics, labelText) => {
+        if (!physics) return;
+
+        const anchor = physics.anchor;
+
+        // 1. Top Earring Attachment Hardware (Hook, Post, or Wire)
+        if (selectedEarringHardware === 'post') {
+            drawEarPost(ctx, anchor.x, anchor.y, 0, selectedMetal);
+        } else if (selectedEarringHardware === 'wire') {
+            drawEarWire(ctx, anchor.x, anchor.y, 0, selectedMetal);
+        } else {
+            drawFrenchEarHook(ctx, anchor.x, anchor.y, 0, selectedMetal);
+        }
+
+        // 2. Articulated Stones / Pearls
+        // Exactly ONE hinge between each pair of pearls (drawn cleanly at the bottom of each pearl).
+        // The bottom-most pearl in the chain has NO hinge below it until a new pearl is attached!
+        const segments = physics.getSegments();
+
+        for (let i = 0; i < segments.length; i++) {
+            const seg = segments[i];
+            const isLast = (i === segments.length - 1);
+
+            // Segment Stone / Pearl (bottom single hinge only drawn if !isLast)
+            if (seg.type === 'larimar') {
+                drawProngLarimarCabochon(ctx, seg.endX, seg.endY, seg.angle, seg.size || 26, selectedMetal, isLast);
+            } else if (seg.type === 'keshi') {
+                drawProngKeshiPearl(ctx, seg.endX, seg.endY, seg.angle, seg.width || 22, seg.height || 38, selectedMetal, isLast);
+            } else if (seg.type === 'baroque-coin') {
+                drawProngBaroqueCoinPearl(ctx, seg.endX, seg.endY, seg.angle, seg.width || 48, seg.height || 52, selectedMetal, isLast);
+            } else if (seg.type === 'tier') {
+                const compData = COMPONENTS.find(c => c.id === seg.id);
+                const img = compData?.image ? imageCache.get(compData.image) : null;
+                drawCustomTierElement(ctx, seg.endX, seg.endY, seg.angle, compData, selectedMetal, img, isLast);
+            } else if (seg.type === 'diamond-stud') {
+                drawProngLarimarCabochon(ctx, seg.endX, seg.endY, seg.angle, seg.size || 22, selectedMetal, isLast);
+            } else {
+                drawProngLarimarCabochon(ctx, seg.endX, seg.endY, seg.angle, 26, selectedMetal, isLast);
+            }
+        }
+
+        // 3. Studio Earring Labels
+        ctx.save();
+        ctx.font = "600 11px Inter, sans-serif";
+        ctx.fillStyle = selectedBackdrop.includes("velvet") ? "rgba(255, 255, 255, 0.45)" : "rgba(80, 80, 80, 0.65)";
+        ctx.textAlign = "center";
+        ctx.letterSpacing = "2px";
+        ctx.fillText(labelText, anchor.x, 435);
+        ctx.restore();
+    }, [selectedMetal, selectedBackdrop, selectedEarringHardware]);
+
+    // ─── Render Frame (Synchronous & Blazing Fast) ──────────────────────────────
+    const renderFrame = useCallback(() => {
         const canvas = canvasRef.current;
         if (!canvas || canvasSize.width === 0) return;
 
@@ -180,8 +349,10 @@ const CanvasPreview = ({
         const designH = variantConfig.dimensions.height; // 500
         const dpr = Math.min(window.devicePixelRatio || 1, 2.5);
 
-        canvas.width = cw * dpr;
-        canvas.height = ch * dpr;
+        if (canvas.width !== cw * dpr || canvas.height !== ch * dpr) {
+            canvas.width = cw * dpr;
+            canvas.height = ch * dpr;
+        }
 
         const ctx = canvas.getContext('2d');
         ctx.save();
@@ -189,24 +360,43 @@ const CanvasPreview = ({
         ctx.clearRect(0, 0, cw, ch);
 
         const layout = getLayout();
-        
-        // Draw the luxury studio background covering the full area before scaling
+
+        // 1. Luxury Studio Backdrop
         drawLuxuryBackdrop(ctx, cw, ch, selectedBackdrop, layout.type);
 
-        // Center and fit the 500x500 jewelry design inside the full studio view
+        // 2. Center and fit design coordinate space
         const scale = Math.min(cw / designW, ch / designH) * 0.88;
         const offsetX = (cw - designW * scale) / 2;
         const offsetY = (ch - designH * scale) / 2;
 
         ctx.translate(offsetX, offsetY);
         ctx.scale(scale, scale);
+
+        // 3. Render Articulated Drop Earrings
+        if (isEarring) {
+            drawArticulatedEarring(ctx, leftPhysicsRef.current, "LEFT EARRING");
+            drawArticulatedEarring(ctx, rightPhysicsRef.current, "RIGHT EARRING");
+
+            // Interactive Helper Hint at bottom
+            ctx.save();
+            ctx.font = "500 11px Inter, sans-serif";
+            ctx.fillStyle = selectedBackdrop.includes("velvet") ? "rgba(255, 235, 170, 0.55)" : "rgba(100, 90, 60, 0.65)";
+            ctx.textAlign = "center";
+            ctx.letterSpacing = "1.2px";
+            ctx.fillText("◇ ARTICULATED FINE JEWELRY • TUG PEARLS TO SWING ◇", 250, 468);
+            ctx.restore();
+
+            ctx.restore();
+            return;
+        }
+
+        // 4. Non-Earrings (Necklace / Bracelet)
         const currentMetal = METALS[selectedMetal] || METALS.gold;
         const baseBeadSrc = currentMetal.baseBeadImage || variantConfig.baseBeadImage;
-        const baseBeadImg = await loadImage(baseBeadSrc);
+        const baseBeadImg = imageCache.get(baseBeadSrc);
 
         const linkPitch = selectedChainStyle === 'paperclip' ? 12 : selectedChainStyle === 'rope' ? 6.5 : 7.8;
 
-        // 1. Render Photorealistic Base Chain
         if (layout.type === 'necklace-curve') {
             const rightPt = {
                 x: layout.centerX + layout.radiusX * Math.cos(layout.startAngle),
@@ -220,93 +410,26 @@ const CanvasPreview = ({
             const leftAnchor = { x: layout.centerX - 82, y: 18 };
             const rightAnchor = { x: layout.centerX + 82, y: 18 };
 
-            // Left upper suspension hanger (drapes naturally from neck to leftPt)
-            const leftHangerPts = sampleEquidistantBezier(
-                leftAnchor,
-                { x: layout.centerX - 115, y: 88 },
-                leftPt,
-                null,
-                linkPitch
-            );
-
-            // Right upper suspension hanger (drapes naturally from neck to rightPt)
-            const rightHangerPts = sampleEquidistantBezier(
-                rightAnchor,
-                { x: layout.centerX + 115, y: 88 },
-                rightPt,
-                null,
-                linkPitch
-            );
+            const leftHangerPts = sampleEquidistantBezier(leftAnchor, { x: layout.centerX - 115, y: 88 }, leftPt, null, linkPitch);
+            const rightHangerPts = sampleEquidistantBezier(rightAnchor, { x: layout.centerX + 115, y: 88 }, rightPt, null, linkPitch);
 
             drawPhotorealisticChain(ctx, leftHangerPts, selectedMetal, selectedChainStyle);
             drawPhotorealisticChain(ctx, rightHangerPts, selectedMetal, selectedChainStyle);
 
-            // Main draped catenary necklace curve
             const mainArcPts = sampleEquidistantEllipse(
-                layout.centerX,
-                layout.centerY,
-                layout.radiusX,
-                layout.radiusY,
-                layout.startAngle,
-                layout.endAngle,
-                linkPitch
+                layout.centerX, layout.centerY, layout.radiusX, layout.radiusY,
+                layout.startAngle, layout.endAngle, linkPitch
             );
             drawPhotorealisticChain(ctx, mainArcPts, selectedMetal, selectedChainStyle);
-
-            // Suspension end-caps & lobster claw clasp at top anchor points
             drawLuxuryClaspAndEndCaps(ctx, leftAnchor, rightAnchor, selectedMetal);
 
-        } else if (layout.type === 'dual-earring') {
-            // Left Earring Stud & Hoop
-            drawLuxuryEarringStud(ctx, layout.leftCenter.x, layout.leftCenter.y, selectedMetal);
-            const leftHoopPts = sampleEquidistantEllipse(
-                layout.leftCenter.x,
-                layout.leftCenter.y,
-                layout.radiusX,
-                layout.radiusY,
-                0,
-                Math.PI * 2,
-                linkPitch
-            );
-            drawPhotorealisticChain(ctx, leftHoopPts, selectedMetal, selectedChainStyle);
-
-            // Right Earring Stud & Hoop
-            drawLuxuryEarringStud(ctx, layout.rightCenter.x, layout.rightCenter.y, selectedMetal);
-            const rightHoopPts = sampleEquidistantEllipse(
-                layout.rightCenter.x,
-                layout.rightCenter.y,
-                layout.radiusX,
-                layout.radiusY,
-                0,
-                Math.PI * 2,
-                linkPitch
-            );
-            drawPhotorealisticChain(ctx, rightHoopPts, selectedMetal, selectedChainStyle);
-
-            // Studio Earring Labels
-            ctx.save();
-            ctx.font = "600 11px Inter, sans-serif";
-            ctx.fillStyle = selectedBackdrop.includes("velvet") ? "rgba(255, 255, 255, 0.45)" : "rgba(80, 80, 80, 0.65)";
-            ctx.textAlign = "center";
-            ctx.letterSpacing = "2px";
-            ctx.fillText("LEFT EARRING", layout.leftCenter.x, 385);
-            ctx.fillText("RIGHT EARRING", layout.rightCenter.x, 385);
-            ctx.restore();
-
         } else {
-            // Bracelet (Classic Ellipse)
+            // Bracelet
             const braceletPts = sampleEquidistantEllipse(
-                layout.centerX,
-                layout.centerY,
-                layout.radiusX,
-                layout.radiusY,
-                0,
-                Math.PI * 2,
-                linkPitch
+                layout.centerX, layout.centerY, layout.radiusX, layout.radiusY,
+                0, Math.PI * 2, linkPitch
             );
             drawPhotorealisticChain(ctx, braceletPts, selectedMetal, selectedChainStyle);
-
-            // Clasp link at top
             drawLuxuryClaspAndEndCaps(
                 ctx,
                 { x: layout.centerX - 9, y: layout.centerY - layout.radiusY },
@@ -315,59 +438,29 @@ const CanvasPreview = ({
             );
         }
 
-        // 2. Prepare beads/stones render queue
+        // Draw placed beads for necklace & bracelet
         const positions = configuration.map(item => ({
             ...item,
             ...getPointOnLayout(item.angle, layout, item.side || 'left')
         }));
 
-        const renderQueue = await Promise.all(
-            positions.map(async (pos) => {
-                let img;
-                let size = layout.type === 'dual-earring' ? 26 : 30;
-                let compData = null;
+        positions.sort((a, b) => a.y - b.y);
 
-                if (pos.id) {
-                    compData = COMPONENTS.find(c => c.id === pos.id);
-                    if (compData) {
-                        img = await loadImage(compData.image);
-                        size = layout.type === 'dual-earring' ? Math.round(compData.width * 0.82) : compData.width;
-                    } else {
-                        img = baseBeadImg;
-                    }
-                } else {
-                    img = baseBeadImg;
-                }
+        positions.forEach(item => {
+            const compData = item.id ? COMPONENTS.find(c => c.id === item.id) : null;
+            const img = (compData?.image ? imageCache.get(compData.image) : baseBeadImg) || baseBeadImg;
+            const size = compData ? compData.width : 30;
+            const isBaseBead = !compData;
 
-                return {
-                    img,
-                    x: pos.x,
-                    y: pos.y,
-                    angle: pos.angle,
-                    width: size,
-                    height: size,
-                    isBaseBead: img === baseBeadImg,
-                    rotation: pos.rotation || 0,
-                    mirrored: pos.mirrored || false,
-                    compData
-                };
-            })
-        );
-
-        // Sort by Y for natural depth
-        renderQueue.sort((a, b) => a.y - b.y);
-
-        // 3. Draw items with realistic lighting, jump rings, contact shadows & sparkles
-        renderQueue.forEach(item => {
-            const { img, x, y, angle, width, height, isBaseBead, rotation, mirrored } = item;
+            if (!img) return;
 
             ctx.save();
-            ctx.translate(x, y);
+            ctx.translate(item.x, item.y);
 
-            // A. Component Cast Drop Shadow onto Velvet Display Pedestal
+            // Drop shadow
             ctx.save();
             ctx.beginPath();
-            ctx.arc(3.5, 7.5, width * 0.44, 0, Math.PI * 2);
+            ctx.arc(3.5, 7.5, size * 0.44, 0, Math.PI * 2);
             ctx.fillStyle = "rgba(0, 0, 0, 0.48)";
             ctx.shadowColor = "rgba(0, 0, 0, 0.65)";
             ctx.shadowBlur = 12;
@@ -376,48 +469,35 @@ const CanvasPreview = ({
             ctx.fill();
             ctx.restore();
 
-            // B. Draw item image with rotation and mirror
+            // Item body
             ctx.save();
-            ctx.rotate(rotation);
-            if (mirrored) {
-                ctx.scale(-1, 1);
-            }
+            ctx.rotate(item.rotation || 0);
+            if (item.mirrored) ctx.scale(-1, 1);
 
             if (isBaseBead) {
-                // Spherical bead render
                 ctx.beginPath();
-                ctx.arc(0, 0, width / 2, 0, Math.PI * 2);
-                ctx.closePath();
+                ctx.arc(0, 0, size / 2, 0, Math.PI * 2);
                 ctx.clip();
-
-                // Rose gold tint if selected
                 if (selectedMetal === "roseGold") {
                     ctx.filter = "hue-rotate(330deg) saturate(1.15) brightness(1.05)";
                 }
             }
 
-            ctx.drawImage(img, -width / 2, -height / 2, width, height);
+            ctx.drawImage(img, -size / 2, -size / 2, size, size);
             ctx.restore();
 
-            // C. Authentic jewelry bail connector attaching charm to chain
-            drawJumpRingAndBail(ctx, 0, 0, angle, selectedMetal, isBaseBead);
-
-            // D. Specular micro-glint on gemstone / charm
+            drawJumpRingAndBail(ctx, 0, 0, item.angle, selectedMetal, isBaseBead);
             if (!isBaseBead) {
-                drawSparkle(ctx, -width * 0.25, -height * 0.25, 6, "#FFFFFF");
+                drawSparkle(ctx, -size * 0.25, -size * 0.25, 6, "#FFFFFF");
             }
-
             ctx.restore();
         });
 
-        // 4. Snap guide halo and ghost bead if dragging / hovering
+        // Snap preview for necklace/bracelet
         if (previewAngle !== null) {
             const snapPos = getPointOnLayout(previewAngle, layout, previewSide);
-            const center = layout.type === 'dual-earring'
-                ? (previewSide === 'right' ? layout.rightCenter : layout.leftCenter)
-                : { x: layout.centerX, y: layout.centerY };
+            const center = { x: layout.centerX, y: layout.centerY };
 
-            // Snap line with soft glow
             ctx.save();
             ctx.beginPath();
             ctx.moveTo(center.x, center.y);
@@ -425,47 +505,63 @@ const CanvasPreview = ({
             ctx.strokeStyle = previewColliding ? 'rgba(235, 75, 75, 0.7)' : 'rgba(255, 235, 170, 0.6)';
             ctx.setLineDash([4, 4]);
             ctx.lineWidth = 2;
-            ctx.shadowColor = previewColliding ? 'rgba(235, 75, 75, 0.8)' : 'rgba(255, 220, 120, 0.8)';
-            ctx.shadowBlur = 6;
             ctx.stroke();
             ctx.restore();
 
-            // Snap guide halo
             ctx.save();
             ctx.beginPath();
             ctx.arc(snapPos.x, snapPos.y, 16, 0, Math.PI * 2);
             ctx.strokeStyle = previewColliding ? 'rgba(235, 75, 75, 0.85)' : 'rgba(255, 225, 130, 0.85)';
             ctx.lineWidth = 1.6;
-            ctx.setLineDash([3, 3]);
             ctx.stroke();
-            ctx.restore();
-
-            // Ghost bead
-            const size = layout.type === 'dual-earring' ? 26 : 30;
-            ctx.save();
-            ctx.globalAlpha = 0.75;
-            ctx.beginPath();
-            ctx.arc(snapPos.x, snapPos.y, size / 2, 0, Math.PI * 2);
-            ctx.closePath();
-            ctx.clip();
-
-            if (previewColliding) {
-                ctx.drawImage(baseBeadImg, snapPos.x - size / 2, snapPos.y - size / 2, size, size);
-                ctx.fillStyle = 'rgba(235, 50, 50, 0.55)';
-                ctx.fill();
-            } else {
-                ctx.drawImage(baseBeadImg, snapPos.x - size / 2, snapPos.y - size / 2, size, size);
-            }
             ctx.restore();
         }
 
         ctx.restore();
-    }, [configuration, variantConfig, selectedMetal, selectedChainStyle, selectedBackdrop, getLayout, canvasSize, previewAngle, previewSide, previewColliding]);
+    }, [
+        canvasSize, variantConfig, getLayout, selectedBackdrop, isEarring,
+        selectedMetal, selectedChainStyle, configuration, previewAngle, previewSide,
+        previewColliding, drawArticulatedEarring
+    ]);
 
-    // Trigger re-render whenever dependencies change
+    // ─── Animation Loop (Continuous for Live 2D Physics) ──────────────────────────
     useEffect(() => {
-        renderJewelry();
-    }, [renderJewelry]);
+        let active = true;
+
+        const loop = (timestamp) => {
+            if (!active) return;
+
+            const dt = (timestamp - lastAnimTimeRef.current) / 1000;
+            lastAnimTimeRef.current = timestamp;
+
+            if (isEarring) {
+                leftPhysicsRef.current?.step(dt);
+                rightPhysicsRef.current?.step(dt);
+            }
+
+            renderFrame();
+
+            // Earring mode runs continuous 60 FPS physics loop; others only redraw when needed
+            if (isEarring || activePhysicsDraggingRef.current) {
+                animationFrameIdRef.current = requestAnimationFrame(loop);
+            }
+        };
+
+        lastAnimTimeRef.current = performance.now();
+
+        if (isEarring) {
+            animationFrameIdRef.current = requestAnimationFrame(loop);
+        } else {
+            renderFrame();
+        }
+
+        return () => {
+            active = false;
+            if (animationFrameIdRef.current) {
+                cancelAnimationFrame(animationFrameIdRef.current);
+            }
+        };
+    }, [isEarring, renderFrame]);
 
     useEffect(() => {
         if (onCanvasReady) {
@@ -478,6 +574,11 @@ const CanvasPreview = ({
         e.preventDefault();
         const canvas = canvasRef.current;
         if (!canvas) return;
+
+        if (isEarring) {
+            e.dataTransfer.dropEffect = "copy";
+            return;
+        }
 
         const { x, y } = getCanvasCoordinates(e, canvas);
         const layout = getLayout();
@@ -506,26 +607,36 @@ const CanvasPreview = ({
     const handleDropEvent = (e) => {
         e.preventDefault();
         const canvas = canvasRef.current;
-        const { x, y } = getCanvasCoordinates(e, canvas);
-        const layout = getLayout();
-        const nearInfo = isClickNearEllipse(x, y, layout, 50);
+        if (!canvas) return;
 
         setPreviewAngle(null);
         setPreviewColliding(false);
 
-        if (!nearInfo.isNear) return;
-
-        const side = nearInfo.side || 'left';
-        const center = nearInfo.center;
-        const angle = getAngleFromPoint(x, y, center.x, center.y);
-
-        if (checkCollision(angle, side)) {
-            return;
-        }
-
         try {
-            const data = JSON.parse(e.dataTransfer.getData("application/json"));
-            if (data && data.id && onDrop) {
+            const raw = e.dataTransfer.getData("application/json");
+            if (!raw) return;
+            const data = JSON.parse(raw);
+
+            if (isEarring) {
+                if (data && data.id && onAttachEarringStone) {
+                    onAttachEarringStone(data.id);
+                    // Add lively physical impulse on attachment!
+                    leftPhysicsRef.current?.applyImpulse((Math.random() - 0.5) * 60, -20);
+                    rightPhysicsRef.current?.applyImpulse((Math.random() - 0.5) * 60, -20);
+                }
+                return;
+            }
+
+            const { x, y } = getCanvasCoordinates(e, canvas);
+            const layout = getLayout();
+            const nearInfo = isClickNearEllipse(x, y, layout, 50);
+            if (!nearInfo.isNear) return;
+
+            const side = nearInfo.side || 'left';
+            const center = nearInfo.center;
+            const angle = getAngleFromPoint(x, y, center.x, center.y);
+
+            if (!checkCollision(angle, side) && onDrop) {
                 onDrop({ id: data.id, angle, side });
             }
         } catch (err) {
@@ -539,7 +650,23 @@ const CanvasPreview = ({
 
         const { x, y } = getCanvasCoordinates(e, canvas);
 
-        // Right-click: stone rotation
+        // 2D Earring Physics Grab
+        if (isEarring && e.button === 0) {
+            const grabDist = 52;
+            if (leftPhysicsRef.current && leftPhysicsRef.current.grabNodeAt(x, y, grabDist)) {
+                activePhysicsDraggingRef.current = leftPhysicsRef.current;
+                setDraggingItem('left-earring');
+                return;
+            }
+            if (rightPhysicsRef.current && rightPhysicsRef.current.grabNodeAt(x, y, grabDist)) {
+                activePhysicsDraggingRef.current = rightPhysicsRef.current;
+                setDraggingItem('right-earring');
+                return;
+            }
+            return;
+        }
+
+        // Right-click: stone rotation (Necklace & Bracelet)
         if (e.button === 2) {
             const clickedItem = findItemAtPosition(x, y);
             if (clickedItem && clickedItem.id) {
@@ -552,7 +679,7 @@ const CanvasPreview = ({
             return;
         }
 
-        // Left-click: drag/select
+        // Left-click: drag/select (Necklace & Bracelet)
         if (e.button === 0) {
             const clickedItem = findItemAtPosition(x, y);
             if (clickedItem) {
@@ -563,81 +690,73 @@ const CanvasPreview = ({
     };
 
     const handleMouseMove = (e) => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        // Earring Live Physics Drag
+        if (isEarring) {
+            if (activePhysicsDraggingRef.current) {
+                const { x, y } = getCanvasCoordinates(e, canvas);
+                activePhysicsDraggingRef.current.updateDrag(x, y);
+            }
+            return;
+        }
+
         // Rotation
         if (isRotatingRef.current && rotatingItemRef.current && onItemRotate) {
             const deltaX = e.clientX - rotateStartXRef.current;
-            const ROTATION_SENSITIVITY = 0.01;
-            const newRotation = rotateStartRotationRef.current + (deltaX * ROTATION_SENSITIVITY);
+            const newRotation = rotateStartRotationRef.current + (deltaX * 0.01);
             onItemRotate(rotatingItemRef.current, newRotation);
             return;
         }
 
-        // Drag along chain
+        // Drag along necklace / bracelet curve
         if (!draggingItem || !onItemMove) return;
-
-        const canvas = canvasRef.current;
-        if (!canvas) return;
 
         const { x, y } = getCanvasCoordinates(e, canvas);
         const layout = getLayout();
-        const currentItem = configuration.find(i => i.uuid === draggingItem);
-        if (!currentItem) return;
+        const angle = getAngleFromPoint(x, y, layout.centerX, layout.centerY);
 
-        const side = currentItem.side || 'left';
-        const center = layout.type === 'dual-earring'
-            ? (side === 'right' ? layout.rightCenter : layout.leftCenter)
-            : { x: layout.centerX, y: layout.centerY };
-
-        const newAngle = getAngleFromPoint(x, y, center.x, center.y);
-
-        // Clamp necklace curve angles
         if (layout.type === 'necklace-curve') {
-            if (newAngle < layout.startAngle || newAngle > layout.endAngle) return;
+            if (angle < layout.startAngle || angle > layout.endAngle) return;
         }
 
-        if (!checkCollision(newAngle, side, draggingItem)) {
-            onItemMove(draggingItem, newAngle);
+        if (!checkCollision(angle, 'left', draggingItem)) {
+            onItemMove(draggingItem, angle);
         }
     };
 
     const handleMouseUp = () => {
+        // Earring Physics Release
+        if (isEarring && activePhysicsDraggingRef.current) {
+            activePhysicsDraggingRef.current.releaseGrab();
+            activePhysicsDraggingRef.current = null;
+            setDraggingItem(null);
+            return;
+        }
+
         if (isRotatingRef.current) {
             isRotatingRef.current = false;
             rotatingItemRef.current = null;
-            return;
         }
-        setDraggingItem(null);
-    };
-
-    const handleContextMenu = (e) => {
-        e.preventDefault();
-    };
-
-    const handleDoubleClick = (e) => {
-        const canvas = canvasRef.current;
-        if (!canvas || !onItemMirror) return;
-
-        const { x, y } = getCanvasCoordinates(e, canvas);
-        const clickedItem = findItemAtPosition(x, y);
-
-        if (clickedItem && clickedItem.id) {
-            onItemMirror(clickedItem.uuid);
+        if (draggingItem) {
+            setDraggingItem(null);
         }
     };
 
     const handleCanvasClickEvent = (e) => {
-        if (draggingItem) return;
+        if (isEarring) return;
 
         const canvas = canvasRef.current;
         if (!canvas) return;
 
         const { x, y } = getCanvasCoordinates(e, canvas);
-        const layout = getLayout();
         const clickedItem = findItemAtPosition(x, y);
 
         if (clickedItem) {
             onCanvasClick({ type: 'select', uuid: clickedItem.uuid });
         } else {
+            const layout = getLayout();
             const nearInfo = isClickNearEllipse(x, y, layout, 40);
             if (nearInfo.isNear) {
                 const side = nearInfo.side || 'left';
@@ -655,6 +774,29 @@ const CanvasPreview = ({
         }
     };
 
+    const handleDoubleClick = (e) => {
+        if (isEarring) {
+            // Double click on earrings to give a gentle playful nudge!
+            leftPhysicsRef.current?.applyImpulse(45, -15);
+            rightPhysicsRef.current?.applyImpulse(-45, -15);
+            return;
+        }
+
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+
+        const { x, y } = getCanvasCoordinates(e, canvas);
+        const clickedItem = findItemAtPosition(x, y);
+
+        if (clickedItem && clickedItem.id && onItemMirror) {
+            onItemMirror(clickedItem.uuid);
+        }
+    };
+
+    const handleContextMenu = (e) => {
+        e.preventDefault();
+    };
+
     // ─── Touch Handlers ───────────────────────────────────────────────────────
     const handleTouchStart = (e) => {
         const canvas = canvasRef.current;
@@ -662,6 +804,22 @@ const CanvasPreview = ({
 
         const touch = e.touches[0];
         const { x, y } = getTouchCanvasCoordinates(touch, canvas);
+
+        if (isEarring) {
+            const grabDist = 55;
+            if (leftPhysicsRef.current && leftPhysicsRef.current.grabNodeAt(x, y, grabDist)) {
+                activePhysicsDraggingRef.current = leftPhysicsRef.current;
+                setDraggingItem('left-earring');
+                return;
+            }
+            if (rightPhysicsRef.current && rightPhysicsRef.current.grabNodeAt(x, y, grabDist)) {
+                activePhysicsDraggingRef.current = rightPhysicsRef.current;
+                setDraggingItem('right-earring');
+                return;
+            }
+            return;
+        }
+
         const clickedItem = findItemAtPosition(x, y);
 
         if (clickedItem && clickedItem.id) {
@@ -685,8 +843,6 @@ const CanvasPreview = ({
                 rotateStartXRef.current = touch.clientX;
                 rotateStartRotationRef.current = clickedItem.rotation || 0;
                 onCanvasClick({ type: 'select', uuid: clickedItem.uuid });
-
-                if (navigator.vibrate) navigator.vibrate(30);
             }, 500);
         }
     };
@@ -694,6 +850,13 @@ const CanvasPreview = ({
     const handleTouchMove = (e) => {
         const canvas = canvasRef.current;
         if (!canvas) return;
+
+        if (isEarring && activePhysicsDraggingRef.current && e.touches.length === 1) {
+            const touch = e.touches[0];
+            const { x, y } = getTouchCanvasCoordinates(touch, canvas);
+            activePhysicsDraggingRef.current.updateDrag(x, y);
+            return;
+        }
 
         if (longPressTimerRef.current && !longPressTriggeredRef.current) {
             if (!isRotatingRef.current) {
@@ -706,13 +869,19 @@ const CanvasPreview = ({
             e.preventDefault();
             const touch = e.touches[0];
             const deltaX = touch.clientX - rotateStartXRef.current;
-            const ROTATION_SENSITIVITY = 0.01;
-            const newRotation = rotateStartRotationRef.current + (deltaX * ROTATION_SENSITIVITY);
+            const newRotation = rotateStartRotationRef.current + (deltaX * 0.01);
             onItemRotate(rotatingItemRef.current, newRotation);
         }
     };
 
     const handleTouchEnd = () => {
+        if (isEarring && activePhysicsDraggingRef.current) {
+            activePhysicsDraggingRef.current.releaseGrab();
+            activePhysicsDraggingRef.current = null;
+            setDraggingItem(null);
+            return;
+        }
+
         if (longPressTimerRef.current) {
             clearTimeout(longPressTimerRef.current);
             longPressTimerRef.current = null;
@@ -747,7 +916,7 @@ const CanvasPreview = ({
                 overflow: 'hidden'
             }}
         >
-            {/* Interactive 2D Photorealistic Jewelry Canvas */}
+            {/* Interactive Photorealistic Jewelry Canvas */}
             <canvas
                 ref={canvasRef}
                 className="luxury-canvas"
@@ -771,7 +940,9 @@ const CanvasPreview = ({
                     height: '100%',
                     display: 'block',
                     zIndex: 2,
-                    cursor: isRotatingRef.current ? 'ew-resize' : (draggingItem ? 'grabbing' : 'pointer'),
+                    cursor: isEarring
+                        ? (activePhysicsDraggingRef.current ? 'grabbing' : 'grab')
+                        : (isRotatingRef.current ? 'ew-resize' : (draggingItem ? 'grabbing' : 'pointer')),
                     touchAction: 'manipulation'
                 }}
             />

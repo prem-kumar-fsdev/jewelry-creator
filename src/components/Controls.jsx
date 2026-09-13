@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { COMPONENTS, METALS, CHAIN_STYLES, BACKDROPS } from "../data/jewelryData";
+import { COMPONENTS, METALS, CHAIN_STYLES, BACKDROPS, EARRING_HARDWARE } from "../data/jewelryData";
 import { EARRING_STYLES } from "./Earrings3DStudio";
 
 const EARRING_PRICES = {
@@ -22,6 +22,8 @@ const Controls = ({
     onSelectBackdrop,
     selectedEarringStyle = "baroque-larimar",
     onSelectEarringStyle,
+    selectedEarringHardware = "hook",
+    onSelectEarringHardware,
     earringStudioMode = "3d",
     earringChain = [],
     onAttachEarringStone,
@@ -37,6 +39,7 @@ const Controls = ({
 }) => {
     const [openSections, setOpenSections] = useState({
         metal: true,
+        hardware: true,
         silhouette: false,
         stones: true,
         backdrop: false,
@@ -54,6 +57,7 @@ const Controls = ({
     const expandAll = () => {
         setOpenSections({
             metal: true,
+            hardware: true,
             silhouette: true,
             stones: true,
             backdrop: true,
@@ -64,6 +68,7 @@ const Controls = ({
     const collapseAll = () => {
         setOpenSections({
             metal: false,
+            hardware: false,
             silhouette: false,
             stones: false,
             backdrop: false,
@@ -73,6 +78,8 @@ const Controls = ({
 
     const isEarring = variantConfig?.type === 'earrings';
     const is3DEarring = isEarring && earringStudioMode === '3d';
+
+    const showEarringCascade = isEarring;
 
     const basePrice = isEarring
         ? (EARRING_PRICES[selectedEarringStyle] || 14500)
@@ -90,7 +97,7 @@ const Controls = ({
         return sum + (comp ? comp.price * 2 : 0);
     }, 0);
 
-    const totalPrice = is3DEarring
+    const totalPrice = isEarring
         ? basePrice + earringChainPrice
         : basePrice + componentsPrice;
 
@@ -98,15 +105,16 @@ const Controls = ({
     const activeComp = activeItem && activeItem.id ? COMPONENTS.find(c => c.id === activeItem.id) : null;
     const currentMetal = METALS[selectedMetal] || METALS.gold;
     const currentEarringStyle = EARRING_STYLES[selectedEarringStyle] || EARRING_STYLES['baroque-larimar'];
+    const currentHardware = EARRING_HARDWARE[selectedEarringHardware] || EARRING_HARDWARE.hook;
 
-    const canAction = is3DEarring || configuration.length > 0;
+    const canAction = isEarring || configuration.length > 0;
 
     return (
         <div className="controls-panel">
             {/* Product Header */}
             <div className="product-header">
                 <div className="variant-tag">
-                    {isEarring ? "3D Fine Jewelry Earrings" : (variantConfig?.shortName || "Jewelry")} • {currentMetal.shortName}
+                    {isEarring ? "Articulated Fine Drop Earrings" : (variantConfig?.shortName || "Jewelry")} • {currentMetal.shortName}
                 </div>
                 <h1 className="product-title">
                     {isEarring ? currentEarringStyle.name : (variantConfig?.name || "Custom Jewelry")}
@@ -114,10 +122,10 @@ const Controls = ({
                 <div className="product-price">PKR {totalPrice.toLocaleString()}</div>
                 <div className="price-breakdown">
                     <span>Base: PKR {basePrice.toLocaleString()}</span>
-                    {is3DEarring && earringChainPrice > 0 && (
+                    {isEarring && earringChainPrice > 0 && (
                         <span>+ Chained Pearls/Stones (Pair): PKR {earringChainPrice.toLocaleString()}</span>
                     )}
-                    {!is3DEarring && componentsPrice > 0 && (
+                    {!isEarring && componentsPrice > 0 && (
                         <span>+ Stones: PKR {componentsPrice.toLocaleString()}</span>
                     )}
                 </div>
@@ -192,6 +200,65 @@ const Controls = ({
                         </div>
                     </div>
                 </div>
+
+                {/* =========================================================================
+                    ACCORDION: EARRING ATTACHMENT / HARDWARE (Earrings Only)
+                   ========================================================================= */}
+                {isEarring && (
+                    <div className={`luxury-accordion-item ${openSections.hardware ? 'is-open' : ''}`}>
+                        <button
+                            type="button"
+                            className="luxury-accordion-trigger"
+                            onClick={() => toggleSection('hardware')}
+                            aria-expanded={openSections.hardware}
+                        >
+                            <div className="accordion-title-group">
+                                <div className="accordion-title-text">
+                                    <h3 className="luxury-accordion-title">Earring Attachment</h3>
+                                    <span className="luxury-accordion-sub">{currentHardware.name}</span>
+                                </div>
+                            </div>
+                            <div className="accordion-meta-group">
+                                <span className="luxury-meta-pill">
+                                    {currentHardware.tag}
+                                </span>
+                                <span className="luxury-accordion-chevron">
+                                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round">
+                                        <polyline points="6 9 12 15 18 9"></polyline>
+                                    </svg>
+                                </span>
+                            </div>
+                        </button>
+
+                        <div className="luxury-accordion-collapse">
+                            <div className="luxury-accordion-inner">
+                                <div className="hardware-selector-grid">
+                                    {Object.values(EARRING_HARDWARE).map((hw) => {
+                                        const isSelected = selectedEarringHardware === hw.id;
+                                        return (
+                                            <button
+                                                key={hw.id}
+                                                type="button"
+                                                className={`hardware-card ${isSelected ? 'active' : ''}`}
+                                                onClick={() => onSelectEarringHardware && onSelectEarringHardware(hw.id)}
+                                            >
+                                                <div className="hardware-card-header">
+                                                    <span className="hardware-card-title">{hw.name}</span>
+                                                    <span className={`hardware-tag ${isSelected ? 'active' : ''}`}>{hw.tag}</span>
+                                                </div>
+                                                <p className="hardware-card-desc">{hw.description}</p>
+                                                <div className="hardware-card-footer">
+                                                    <span className="hardware-spec">18k Solid Gold Cast</span>
+                                                    {isSelected && <span className="hardware-active-indicator">Selected ✓</span>}
+                                                </div>
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )}
 
                 {/* =========================================================================
                     ACCORDION 02: ATELIER SILHOUETTE / CHAIN WEAVE
@@ -286,19 +353,19 @@ const Controls = ({
                         <div className="accordion-title-group">
                             <div className="accordion-title-text">
                                 <h3 className="luxury-accordion-title">
-                                    {is3DEarring ? "Cascade Pearls & Stones" : "Stones & Beads"}
+                                    {showEarringCascade ? "Cascade Pearls & Stones" : "Stones & Beads"}
                                 </h3>
                                 <span className="luxury-accordion-sub">
-                                    {is3DEarring
+                                    {showEarringCascade
                                         ? (earringChain.length === 0 ? "Ready to customize" : `${earringChain.length} / 6 Tiers Chained`)
                                         : `${configuration.length} / ${variantConfig?.maxComponents || 16} Placed`}
                                 </span>
                             </div>
                         </div>
                         <div className="accordion-meta-group">
-                            {is3DEarring && earringChain.length > 0 ? (
+                            {showEarringCascade && earringChain.length > 0 ? (
                                 <span className="luxury-count-pill">{earringChain.length} Tiers</span>
-                            ) : !is3DEarring && configuration.length > 0 ? (
+                            ) : !showEarringCascade && configuration.length > 0 ? (
                                 <span className="luxury-count-pill">{configuration.length} Placed</span>
                             ) : null}
                             <span className="luxury-accordion-chevron">
@@ -311,8 +378,8 @@ const Controls = ({
 
                     <div className="luxury-accordion-collapse">
                         <div className="luxury-accordion-inner">
-                            {/* 3D Mode Chained Pearls & Stones Atelier */}
-                            {is3DEarring && (
+                            {/* Chained Pearls & Stones Atelier for Earrings */}
+                            {showEarringCascade && (
                                 <div className="cascade-atelier-section">
                                     <div className="option-label" style={{ marginBottom: '0.6rem' }}>
                                         <span className="option-value">
@@ -448,8 +515,8 @@ const Controls = ({
                                 </div>
                             )}
 
-                            {/* 2D Mode Stones & Beads Section */}
-                            {!is3DEarring && (
+                            {/* Non-Earring Stones & Beads Section (Necklaces & Bracelets) */}
+                            {!showEarringCascade && (
                                 <div>
                                     <div className="option-label" style={{ marginBottom: '0.6rem' }}>
                                         <span className="option-value">

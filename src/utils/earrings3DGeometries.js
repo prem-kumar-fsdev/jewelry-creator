@@ -210,6 +210,32 @@ export function createFrenchHookGeometry() {
 }
 
 // ============================================================================
+// 6B. EARRING HARDWARE: KIDNEY / LEVERBACK SAFETY EAR WIRE
+// ============================================================================
+export function createKidneyWireGeometry() {
+    const curvePoints = [
+        new THREE.Vector3(0, 0, 0.18),
+        new THREE.Vector3(0, 0.32, 0.14),
+        new THREE.Vector3(0, 0.72, 0.05),
+        new THREE.Vector3(0, 0.65, -0.16),
+        new THREE.Vector3(0, 0.22, -0.28),
+        new THREE.Vector3(0, 0.04, -0.18),
+        new THREE.Vector3(0, 0.02, -0.04)
+    ];
+    const curve = new THREE.CatmullRomCurve3(curvePoints);
+    const tube = new THREE.TubeGeometry(curve, 24, 0.022, 8, false);
+
+    const eyelet = new THREE.TorusGeometry(0.07, 0.02, 8, 16);
+    eyelet.rotateY(Math.PI / 2);
+    eyelet.translate(0, 0, 0.18);
+
+    const latchSphere = new THREE.SphereGeometry(0.035, 8, 8);
+    latchSphere.translate(0, 0.02, -0.04);
+
+    return mergeGeometries([tube, eyelet, latchSphere]);
+}
+
+// ============================================================================
 // 7. EARRING HARDWARE: HUGGIE HOOP
 // ============================================================================
 export function createHuggieHoopGeometry(outerRadius = 0.38, tubeRadius = 0.055) {

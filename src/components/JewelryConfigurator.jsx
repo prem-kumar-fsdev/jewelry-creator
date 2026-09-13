@@ -37,6 +37,7 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
     const [selectedChainStyle, setSelectedChainStyle] = useState("cable");
     const [selectedBackdrop, setSelectedBackdrop] = useState("velvet-emerald");
     const [selectedEarringStyle, setSelectedEarringStyle] = useState("baroque-larimar");
+    const [selectedEarringHardware, setSelectedEarringHardware] = useState("hook"); // 'hook', 'post', 'wire'
     const [earringStudioMode, setEarringStudioMode] = useState("3d"); // '3d' or '2d'
     const [earringChain, setEarringChain] = useState([]);
 
@@ -138,7 +139,7 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
     const [isProcessing, setIsProcessing] = useState(false);
 
     const handleAddToCart = async () => {
-        if (!canvasRef.current || (!is3DEarring && configuration.length === 0)) return;
+        if (!canvasRef.current || (!isEarring && configuration.length === 0)) return;
 
         setIsProcessing(true);
         try {
@@ -155,12 +156,13 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
                     metal: selectedMetal,
                     chainStyle: isEarring ? selectedEarringStyle : selectedChainStyle,
                     earringStyle: selectedEarringStyle,
-                    configuration: is3DEarring
+                    earringHardware: isEarring ? selectedEarringHardware : undefined,
+                    configuration: isEarring
                         ? [
-                            { id: selectedEarringStyle, name: EARRING_STYLES[selectedEarringStyle]?.name || "Custom 3D Earrings" },
+                            { id: selectedEarringStyle, name: EARRING_STYLES[selectedEarringStyle]?.name || "Custom Fine Drop Earrings" },
                             ...earringChain.map(id => {
                                 const c = COMPONENTS.find(item => item.id === id);
-                                return { id, name: c ? `${c.name} (Chain Tier)` : id };
+                                return { id, name: c ? `${c.name} (Cascade Tier)` : id };
                             })
                           ]
                         : configuration,
@@ -246,6 +248,7 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
                             selectedMetal={selectedMetal}
                             selectedBackdrop={selectedBackdrop}
                             earringStyle={selectedEarringStyle}
+                            selectedEarringHardware={selectedEarringHardware}
                             attachedChain={earringChain}
                             onAttachStone={handleAttachEarringStone}
                             onRemoveLastStone={handleRemoveLastEarringStone}
@@ -260,6 +263,10 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
                         selectedMetal={selectedMetal}
                         selectedChainStyle={selectedChainStyle}
                         selectedBackdrop={selectedBackdrop}
+                        selectedEarringStyle={selectedEarringStyle}
+                        selectedEarringHardware={selectedEarringHardware}
+                        earringChain={earringChain}
+                        onAttachEarringStone={handleAttachEarringStone}
                         onCanvasReady={handleCanvasReady}
                         onCanvasClick={handleCanvasClick}
                         onDrop={handleDrop}
@@ -275,11 +282,22 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
                         <span className="summary-badge metal-badge">
                             ✨ {selectedMetal === 'gold' ? '18k Yellow Gold' : selectedMetal === 'roseGold' ? '18k Rose Gold' : 'Platinum White Gold'}
                         </span>
+                        {isEarring && (
+                            <span className="summary-badge hardware-badge">
+                                {selectedEarringHardware === 'post' ? '🧷 Ear Post' : selectedEarringHardware === 'wire' ? '➰ Kidney Wire' : '🪝 French Hook'}
+                            </span>
+                        )}
                         <span className="summary-badge style-badge">
-                            ⛓️ {selectedChainStyle === 'cable' ? 'Luxury Cable' : selectedChainStyle === 'cuban' ? 'Diamond Cuban' : selectedChainStyle === 'rope' ? 'Twisted Rope' : 'Elongated Clip'}
+                            {isEarring
+                                ? `💎 ${EARRING_STYLES[selectedEarringStyle]?.name || 'Articulated Drop'}`
+                                : `⛓️ ${selectedChainStyle === 'cable' ? 'Luxury Cable' : selectedChainStyle === 'cuban' ? 'Diamond Cuban' : selectedChainStyle === 'rope' ? 'Twisted Rope' : 'Elongated Clip'}`
+                            }
                         </span>
                         <span className="summary-badge count-badge">
-                            💎 {configuration.length} {configuration.length === 1 ? 'Stone Placed' : 'Stones Placed'}
+                            {isEarring
+                                ? `✨ ${earringChain.length} ${earringChain.length === 1 ? 'Tier Chained' : 'Tiers Chained'}`
+                                : `💎 ${configuration.length} ${configuration.length === 1 ? 'Stone Placed' : 'Stones Placed'}`
+                            }
                         </span>
                     </div>
                 )}
@@ -299,6 +317,8 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
                     onSelectBackdrop={setSelectedBackdrop}
                     selectedEarringStyle={selectedEarringStyle}
                     onSelectEarringStyle={setSelectedEarringStyle}
+                    selectedEarringHardware={selectedEarringHardware}
+                    onSelectEarringHardware={setSelectedEarringHardware}
                     earringStudioMode={earringStudioMode}
                     earringChain={earringChain}
                     onAttachEarringStone={handleAttachEarringStone}

@@ -270,22 +270,23 @@ main.main-content {
 
 .preview-summary-bar {
   position: absolute;
-  bottom: 1.5rem;
+  bottom: 0.75rem;
   left: 50%;
   transform: translateX(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  padding: 0.5rem 1.2rem;
-  background: rgba(12, 16, 22, 0.65);
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  padding: 0.35rem 0.85rem;
+  background: rgba(10, 14, 20, 0.72);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   border-radius: 40px;
-  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.45);
   z-index: 20;
+  pointer-events: none;
   animation: summaryBarSlideIn 0.8s ease-out 0.3s both;
 }
 
@@ -321,6 +322,12 @@ main.main-content {
 .summary-badge.metal-badge {
   color: #f0d78c;
   background: rgba(201, 169, 98, 0.15);
+  font-weight: 600;
+}
+
+.summary-badge.hardware-badge {
+  color: #93c5fd;
+  background: rgba(59, 130, 246, 0.15);
   font-weight: 600;
 }
 
@@ -1611,6 +1618,106 @@ main.main-content {
   background: rgba(15, 23, 42, 0.06) !important;
   color: #0f172a !important;
   border: 1px solid rgba(15, 23, 42, 0.15) !important;
+}
+
+/* ==========================================================================
+   EARRING ATTACHMENT / HARDWARE SELECTOR - DENSE SILVER & GOLD ACCENTS
+   ========================================================================== */
+
+.hardware-selector-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+}
+
+.hardware-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  text-align: left;
+  background: #ffffff;
+  border: 1.5px solid #e2e8f0;
+  border-radius: var(--radius-sm);
+  padding: 0.85rem 1rem;
+  cursor: pointer;
+  transition: all 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+  position: relative;
+  overflow: hidden;
+}
+
+.hardware-card:hover {
+  border-color: #94a3b8;
+  background: #f8fafc;
+  transform: translateY(-1px);
+}
+
+.hardware-card.active {
+  border-color: #0f172a;
+  background: #f1f5f9;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.08);
+}
+
+.hardware-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.hardware-card-title {
+  font-weight: 700;
+  font-size: 0.88rem;
+  color: #0f172a;
+  letter-spacing: -0.01em;
+}
+
+.hardware-tag {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  background: #f1f5f9;
+  color: #475569;
+  border: 1px solid #cbd5e1;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.hardware-tag.active {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+
+.hardware-card-desc {
+  margin: 0;
+  font-size: 0.76rem;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.hardware-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.15rem;
+  padding-top: 0.35rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.hardware-spec {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #94a3b8;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+}
+
+.hardware-active-indicator {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: 0.2px;
 }
 
 /* ==========================================================================

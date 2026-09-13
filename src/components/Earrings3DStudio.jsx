@@ -8,6 +8,7 @@ import {
     createCabochonGeometry,
     createJumpRingGeometry,
     createFrenchHookGeometry,
+    createKidneyWireGeometry,
     createHuggieHoopGeometry,
     createStudHardwareGeometry,
     createProngColletGeometry,
@@ -111,6 +112,7 @@ const Earrings3DStudio = ({
     selectedMetal = 'gold',
     selectedBackdrop = 'velvet-emerald',
     earringStyle = 'baroque-larimar',
+    selectedEarringHardware = 'hook',
     attachedChain = [],
     onAttachStone,
     onRemoveLastStone,
@@ -220,11 +222,15 @@ const Earrings3DStudio = ({
 
         } else {
             // 5-Segment Articulated Chain
-            // 0: Top Stud / Hook
+            // 0: Top Hardware (French Hook, Stud Post, or Ear Wire)
             const topGroup = new THREE.Group();
-            if (styleConfig.topHardware === 'hook') {
+            const activeHardware = selectedEarringHardware || styleConfig.topHardware || 'hook';
+            if (activeHardware === 'hook') {
                 const hookMesh = new THREE.Mesh(createFrenchHookGeometry(), metalMat);
                 topGroup.add(hookMesh);
+            } else if (activeHardware === 'wire') {
+                const wireMesh = new THREE.Mesh(createKidneyWireGeometry(), metalMat);
+                topGroup.add(wireMesh);
             } else {
                 const stud = new THREE.Mesh(createStudHardwareGeometry(), metalMat);
                 topGroup.add(stud);
@@ -574,7 +580,7 @@ const Earrings3DStudio = ({
         // Gentle physical settling impulse
         if (leftPhysicsRef.current) leftPhysicsRef.current.applyImpulse(new THREE.Vector3(0.5, 0, 0.3));
         if (rightPhysicsRef.current) rightPhysicsRef.current.applyImpulse(new THREE.Vector3(-0.5, 0, -0.3));
-    }, [selectedMetal, activeStyle, attachedChain, buildEarringAssembly]);
+    }, [selectedMetal, activeStyle, attachedChain, selectedEarringHardware, buildEarringAssembly]);
 
     // Breeze update
     useEffect(() => {

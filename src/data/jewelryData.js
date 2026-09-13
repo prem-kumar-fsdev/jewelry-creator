@@ -27,28 +27,28 @@ export const JEWELRY_VARIANTS = {
   earrings: {
     id: "base-earrings",
     type: "earrings",
-    name: "Custom Gold Earrings",
+    name: "Custom Gold Drop Earrings",
     shortName: "Earrings",
-    basePrice: 6000,
+    basePrice: 14500,
     baseBeadImage: "/assets/base/gold_bead.png",
     dimensions: {
       width: 500,
       height: 500,
     },
     layout: {
-      type: "dual-earring", // Left and Right hoop/drop earrings
+      type: "dual-earring", // Articulated drop earrings with snappy 2D physics
       centerX: 250,
       centerY: 240,
       radiusX: 65,
       radiusY: 85,
-      leftCenter: { x: 155, y: 250 },
-      rightCenter: { x: 345, y: 250 },
+      leftCenter: { x: 165, y: 75 },
+      rightCenter: { x: 335, y: 75 },
       startAngle: 0,
       endAngle: Math.PI * 2,
     },
     slotCount: 8,
     maxComponents: 10,
-    instruction: "Click on the left or right earring hoops to add your personalized stones."
+    instruction: "Tug or drag the earrings to feel the snappy physics, or attach cascading pearls and stones below."
   },
   bracelet: {
     id: "base-bracelet",
@@ -365,6 +365,36 @@ export const BACKDROPS = {
     swatch: "#f8f9fa",
     background: "#ffffff",
     gradient: "radial-gradient(circle at 50% 38%, #ffffff 0%, #f4f6f8 65%, #e1e6eb 100%)"
+  }
+};
+
+export const EARRING_HARDWARE = {
+  hook: {
+    id: "hook",
+    name: "French Shepherd's Hook",
+    shortName: "French Hook",
+    type: "hook",
+    tag: "Classic",
+    description: "Flowing 18k solid gold curved ear wire with arching lobe contour, apex highlight, and collar bead",
+    icon: "hook"
+  },
+  post: {
+    id: "post",
+    name: "Ear Post & Clutch",
+    shortName: "Stud Post",
+    type: "post",
+    tag: "Timeless",
+    description: "Lustrous 18k solid gold dome stud sitting flush against the earlobe piercing with butterfly clutch in back",
+    icon: "post"
+  },
+  wire: {
+    id: "wire",
+    name: "Kidney Safety Wire",
+    shortName: "Ear Wire",
+    type: "wire",
+    tag: "Secure",
+    description: "Arched elongated safety ear wire with rear contoured catch latch, dropping into a front suspension loop",
+    icon: "wire"
   }
 };
 
