@@ -5,11 +5,9 @@ import { Earring2DPhysicsSystem } from "../utils/earrings2DPhysics";
 import {
     drawPhotorealisticChain,
     drawLuxuryClaspAndEndCaps,
-    drawLuxuryEarringStud,
     drawFrenchEarHook,
     drawEarPost,
     drawEarWire,
-    drawArticulatedJumpRing,
     drawProngLarimarCabochon,
     drawProngKeshiPearl,
     drawProngBaroqueCoinPearl,
@@ -19,6 +17,11 @@ import {
     sampleEquidistantEllipse,
     sampleEquidistantBezier,
     drawLuxuryBackdrop,
+    setGlobalAnimTime,
+    drawMotionBlur,
+    drawDragAura,
+    drawHoverGlow,
+    drawParticleBursts,
     LUXURY_METALS
 } from "../utils/photorealisticRenderer";
 
@@ -50,14 +53,29 @@ const get2DEarringSegments = (styleKey = 'baroque-larimar', chainItems = [], con
         ? chainItems
         : configItems.filter(c => c.id).map(c => c.id);
 
-    // Each tier pearl has radius 14px.
-    const tiers = rawTiers.map((id, idx) => ({
-        type: 'tier',
-        id,
-        // First tier hangs below Baroque Coin (length = 45). Subsequent tiers (length = 33).
-        length: idx === 0 ? 45 : 33,
-        mass: 1.05
-    }));
+    // Compute dynamic link length and mass for each tier based on physical stone dimensions
+    let prevHalfHeight = 26; // Baroque Coin (base drop) half-height = 26px
+    const tiers = rawTiers.map((id) => {
+        const comp = COMPONENTS.find(c => c.id === id || c.aliasId === id);
+        const curHeight = comp?.earringLength || comp?.height || 36;
+        const curHalfHeight = curHeight / 2;
+        // Joint length connects previous segment center to current segment center (accounting for eyelet overlap)
+        const length = Math.max(28, Math.round(prevHalfHeight + curHalfHeight - 5));
+        const mass = comp?.earringMass || (comp?.type === 'gemstone' ? 1.1 : 1.0);
+        const width = comp?.earringWidth || comp?.width || 26;
+
+        prevHalfHeight = curHalfHeight;
+
+        return {
+            type: 'tier',
+            id,
+            length,
+            mass,
+            width,
+            height: curHeight,
+            compData: comp
+        };
+    });
 
     if (styleKey === 'royal-chandelier') {
         return [
@@ -105,6 +123,7 @@ const get2DEarringSegments = (styleKey = 'baroque-larimar', chainItems = [], con
 };
 
 const CanvasPreview = ({
+    isActive = true,
     variantConfig,
     configuration = [],
     selectedMetal = "gold",
@@ -133,12 +152,79 @@ const CanvasPreview = ({
     const [draggingItem, setDraggingItem] = useState(null);
     const [canvasSize, setCanvasSize] = useState({ width: 800, height: 700 });
 
+    // Responsive Canvas Resize Observer
+    useEffect(() => {
+        const container = containerRef.current;
+        if (!container) return;
+
+        const updateSize = () => {
+            const rect = container.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                const w = Math.round(rect.width);
+                const h = Math.round(rect.height);
+                setCanvasSize(prev => {
+                    if (prev.width === w && prev.height === h) return prev;
+                    return { width: w, height: h };
+                });
+            }
+        };
+
+        updateSize();
+        const ro = new ResizeObserver(updateSize);
+        ro.observe(container);
+
+        return () => ro.disconnect();
+    }, []);
+
+    // Automatically generate and persist static PNG thumbnails for seeded stones if not yet on disk
+    useEffect(() => {
+        const generateThumbnails = async () => {
+            try {
+                const res = await fetch('/assets/earrings/seeded_larimar.png', { method: 'HEAD' });
+                if (res.ok && res.headers.get('content-type')?.includes('image')) return;
+            } catch {
+                // proceed
+            }
+
+            try {
+                const renderThumb = (renderFn) => {
+                    const c = document.createElement('canvas');
+                    c.width = 120;
+                    c.height = 120;
+                    const ctx = c.getContext('2d');
+                    renderFn(ctx);
+                    return c.toDataURL('image/png');
+                };
+
+                const larimar = renderThumb((ctx) => {
+                    drawProngLarimarCabochon(ctx, 60, 60, 0, 48, 'gold', true);
+                });
+                const keshi = renderThumb((ctx) => {
+                    drawProngKeshiPearl(ctx, 60, 60, 0, 38, 68, 'gold', true);
+                });
+                const baroque = renderThumb((ctx) => {
+                    drawProngBaroqueCoinPearl(ctx, 60, 60, 0, 72, 78, 'gold', true);
+                });
+
+                await fetch('/api/save-seeded-images', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ larimar, keshi, baroque })
+                });
+            } catch (err) {
+                console.warn("Could not save seeded thumbnails:", err);
+            }
+        };
+
+        generateThumbnails();
+    }, []);
+
     // 2D Articulated Physics Systems for Earrings
     const leftPhysicsRef = useRef(null);
     const rightPhysicsRef = useRef(null);
     const activePhysicsDraggingRef = useRef(null);
     const animationFrameIdRef = useRef(null);
-    const lastAnimTimeRef = useRef(performance.now());
+    const lastAnimTimeRef = useRef(0);
 
     // Rotation state (for necklace/bracelet)
     const rotatingItemRef = useRef(null);
@@ -234,16 +320,26 @@ const CanvasPreview = ({
 
     // Preload tier images
     useEffect(() => {
-        if (!earringChain || earringChain.length === 0) return;
-        earringChain.forEach(id => {
+        if (!isEarring) return;
+        // Preload the 4 featured earring stones eagerly for zero-latency attachment
+        ['image_1', 'image_2', 'image_3', 'image_4'].forEach(id => {
             const comp = COMPONENTS.find(c => c.id === id);
             if (comp && comp.image) {
                 loadImage(comp.image).catch(() => {});
             }
         });
-    }, [earringChain]);
+
+        if (!earringChain || earringChain.length === 0) return;
+        earringChain.forEach(id => {
+            const comp = COMPONENTS.find(c => c.id === id || c.aliasId === id);
+            if (comp && comp.image) {
+                loadImage(comp.image).catch(() => {});
+            }
+        });
+    }, [isEarring, earringChain]);
 
     // Initialize & sync 2D Earring Physics Systems
+    const prevEarringChainLengthRef = useRef(earringChain?.length || 0);
     useEffect(() => {
         if (!isEarring) return;
 
@@ -268,7 +364,24 @@ const CanvasPreview = ({
             rightPhysicsRef.current.setAnchor(rightAnchor.x, rightAnchor.y);
             rightPhysicsRef.current.updateChain(segments);
         }
+
+        if (prevEarringChainLengthRef.current !== (earringChain?.length || 0)) {
+            prevEarringChainLengthRef.current = earringChain?.length || 0;
+            leftPhysicsRef.current.applyImpulse((Math.random() - 0.5) * 5, 0);
+            rightPhysicsRef.current.applyImpulse((Math.random() - 0.5) * 5, 0);
+        }
     }, [isEarring, selectedEarringStyle, earringChain, configuration, getLayout]);
+
+    // Physical reaction impulse when changing earring hardware (hook / post / wire)
+    const prevHardwareRef = useRef(selectedEarringHardware);
+    useEffect(() => {
+        if (!isEarring) return;
+        if (prevHardwareRef.current !== selectedEarringHardware) {
+            prevHardwareRef.current = selectedEarringHardware;
+            leftPhysicsRef.current?.applyImpulse(6, 0);
+            rightPhysicsRef.current?.applyImpulse(-6, 0);
+        }
+    }, [selectedEarringHardware, isEarring]);
 
     // ResizeObserver: tracks the container size
     useEffect(() => {
@@ -302,32 +415,73 @@ const CanvasPreview = ({
             drawFrenchEarHook(ctx, anchor.x, anchor.y, 0, selectedMetal);
         }
 
-        // 2. Articulated Stones / Pearls
-        // Exactly ONE hinge between each pair of pearls (drawn cleanly at the bottom of each pearl).
-        // The bottom-most pearl in the chain has NO hinge below it until a new pearl is attached!
+        // 2. Articulated Stones / Pearls with enhanced effects
         const segments = physics.getSegments();
 
         for (let i = 0; i < segments.length; i++) {
             const seg = segments[i];
             const isLast = (i === segments.length - 1);
 
-            // Segment Stone / Pearl (bottom single hinge only drawn if !isLast)
+            // Detect if the NEXT segment is an image_* stone (bail baked into PNG).
+            // If so, suppress the programmatic bottom hinge on THIS segment — the image's
+            // own top bail already acts as the connector, so drawing a hinge here too
+            // would produce a double-hinge.
+            const nextSeg = segments[i + 1];
+            const nextIsImageBased = nextSeg?.type === 'tier' &&
+                COMPONENTS.find(c => c.id === nextSeg.id)?.id?.startsWith('image_');
+            // Treat this segment as "last" for hinge-drawing purposes if the next one
+            // is image-based (its bail is in the image) OR it truly is the last segment.
+            const suppressHinge = isLast || !!nextIsImageBased;
+
+            // B. Motion blur trail (before the pearl so it appears behind)
+            const pearlW = seg.width || seg.size || 26;
+            const pearlH = seg.height || seg.size || 26;
+            const pearlRadius = Math.max(pearlW, pearlH) / 2;
+            drawMotionBlur(ctx, seg.endX, seg.endY, seg.angle, seg.velocity || 0, pearlW, pearlH);
+
+            // C. Drag aura on actively grabbed pearl
+            if (physics.isDragging && physics.grabbedNodeIndex === i + 1) {
+                drawDragAura(ctx, seg.endX, seg.endY, pearlRadius + 10);
+            }
+
+            // D. Hover glow on hovered pearl (when not dragging)
+            if (!physics.isDragging && physics.hoveredNodeIndex === i + 1) {
+                drawHoverGlow(ctx, seg.endX, seg.endY, pearlRadius);
+            }
+
+            // F. Segment Stone / Pearl
+            // image_* tier stones always get suppressHinge=true (their bails are in the PNG).
+            // Programmatic stones suppress their bottom hinge if next is image-based.
             if (seg.type === 'larimar') {
-                drawProngLarimarCabochon(ctx, seg.endX, seg.endY, seg.angle, seg.size || 26, selectedMetal, isLast);
+                drawProngLarimarCabochon(ctx, seg.endX, seg.endY, seg.angle, seg.size || 26, selectedMetal, suppressHinge);
             } else if (seg.type === 'keshi') {
-                drawProngKeshiPearl(ctx, seg.endX, seg.endY, seg.angle, seg.width || 22, seg.height || 38, selectedMetal, isLast);
+                drawProngKeshiPearl(ctx, seg.endX, seg.endY, seg.angle, seg.width || 22, seg.height || 38, selectedMetal, suppressHinge);
             } else if (seg.type === 'baroque-coin') {
-                drawProngBaroqueCoinPearl(ctx, seg.endX, seg.endY, seg.angle, seg.width || 48, seg.height || 52, selectedMetal, isLast);
+                drawProngBaroqueCoinPearl(ctx, seg.endX, seg.endY, seg.angle, seg.width || 48, seg.height || 52, selectedMetal, suppressHinge);
             } else if (seg.type === 'tier') {
                 const compData = COMPONENTS.find(c => c.id === seg.id);
-                const img = compData?.image ? imageCache.get(compData.image) : null;
-                drawCustomTierElement(ctx, seg.endX, seg.endY, seg.angle, compData, selectedMetal, img, isLast);
+                if (compData?.renderType === 'larimar' || compData?.id === 'seeded_larimar') {
+                    drawProngLarimarCabochon(ctx, seg.endX, seg.endY, seg.angle, compData?.width || 26, selectedMetal, suppressHinge);
+                } else if (compData?.renderType === 'keshi' || compData?.id === 'seeded_keshi') {
+                    drawProngKeshiPearl(ctx, seg.endX, seg.endY, seg.angle, compData?.width || 22, compData?.height || 38, selectedMetal, suppressHinge);
+                } else if (compData?.renderType === 'baroque-coin' || compData?.id === 'seeded_baroque_coin') {
+                    drawProngBaroqueCoinPearl(ctx, seg.endX, seg.endY, seg.angle, compData?.width || 48, compData?.height || 52, selectedMetal, suppressHinge);
+                } else {
+                    const img = compData?.image ? imageCache.get(compData.image) : null;
+                    // image_* stones: always pass true so no programmatic hinge is ever drawn
+                    // (their top+bottom bails are baked into the image itself).
+                    const isImageBased = compData?.id?.startsWith('image_');
+                    drawCustomTierElement(ctx, seg.endX, seg.endY, seg.angle, compData, selectedMetal, img, isImageBased ? true : suppressHinge);
+                }
             } else if (seg.type === 'diamond-stud') {
-                drawProngLarimarCabochon(ctx, seg.endX, seg.endY, seg.angle, seg.size || 22, selectedMetal, isLast);
+                drawProngLarimarCabochon(ctx, seg.endX, seg.endY, seg.angle, seg.size || 22, selectedMetal, suppressHinge);
             } else {
-                drawProngLarimarCabochon(ctx, seg.endX, seg.endY, seg.angle, 26, selectedMetal, isLast);
+                drawProngLarimarCabochon(ctx, seg.endX, seg.endY, seg.angle, 26, selectedMetal, suppressHinge);
             }
         }
+
+        // G. Particle bursts (release sparkle effects)
+        drawParticleBursts(ctx, physics.particleBursts);
 
         // 3. Studio Earring Labels
         ctx.save();
@@ -372,15 +526,22 @@ const CanvasPreview = ({
         ctx.translate(offsetX, offsetY);
         ctx.scale(scale, scale);
 
-        // 3. Render Articulated Drop Earrings
+        // 3. Update global animation time for sparkle/glow effects
+        setGlobalAnimTime(performance.now() / 1000);
+
+        // 4. Render Articulated Drop Earrings
         if (isEarring) {
             drawArticulatedEarring(ctx, leftPhysicsRef.current, "LEFT EARRING");
             drawArticulatedEarring(ctx, rightPhysicsRef.current, "RIGHT EARRING");
 
-            // Interactive Helper Hint at bottom
+            // Interactive Helper Hint at bottom (animated pulse/fade)
+            const hintPulse = 0.35 + 0.25 * Math.sin(performance.now() / 1000 * 1.8);
             ctx.save();
             ctx.font = "500 11px Inter, sans-serif";
-            ctx.fillStyle = selectedBackdrop.includes("velvet") ? "rgba(255, 235, 170, 0.55)" : "rgba(100, 90, 60, 0.65)";
+            const isDark = selectedBackdrop.includes("velvet");
+            ctx.fillStyle = isDark
+                ? `rgba(255, 235, 170, ${hintPulse})`
+                : `rgba(100, 90, 60, ${hintPulse + 0.15})`;
             ctx.textAlign = "center";
             ctx.letterSpacing = "1.2px";
             ctx.fillText("◇ ARTICULATED FINE JEWELRY • TUG PEARLS TO SWING ◇", 250, 468);
@@ -526,12 +687,13 @@ const CanvasPreview = ({
 
     // ─── Animation Loop (Continuous for Live 2D Physics) ──────────────────────────
     useEffect(() => {
+        if (!isActive) return;
         let active = true;
 
         const loop = (timestamp) => {
             if (!active) return;
 
-            const dt = (timestamp - lastAnimTimeRef.current) / 1000;
+            const dt = lastAnimTimeRef.current ? (timestamp - lastAnimTimeRef.current) / 1000 : 0.016;
             lastAnimTimeRef.current = timestamp;
 
             if (isEarring) {
@@ -547,8 +709,6 @@ const CanvasPreview = ({
             }
         };
 
-        lastAnimTimeRef.current = performance.now();
-
         if (isEarring) {
             animationFrameIdRef.current = requestAnimationFrame(loop);
         } else {
@@ -561,7 +721,7 @@ const CanvasPreview = ({
                 cancelAnimationFrame(animationFrameIdRef.current);
             }
         };
-    }, [isEarring, renderFrame]);
+    }, [isEarring, renderFrame, isActive]);
 
     useEffect(() => {
         if (onCanvasReady) {
@@ -620,9 +780,6 @@ const CanvasPreview = ({
             if (isEarring) {
                 if (data && data.id && onAttachEarringStone) {
                     onAttachEarringStone(data.id);
-                    // Add lively physical impulse on attachment!
-                    leftPhysicsRef.current?.applyImpulse((Math.random() - 0.5) * 60, -20);
-                    rightPhysicsRef.current?.applyImpulse((Math.random() - 0.5) * 60, -20);
                 }
                 return;
             }
@@ -656,11 +813,13 @@ const CanvasPreview = ({
             if (leftPhysicsRef.current && leftPhysicsRef.current.grabNodeAt(x, y, grabDist)) {
                 activePhysicsDraggingRef.current = leftPhysicsRef.current;
                 setDraggingItem('left-earring');
+                canvas.style.cursor = 'grabbing';
                 return;
             }
             if (rightPhysicsRef.current && rightPhysicsRef.current.grabNodeAt(x, y, grabDist)) {
                 activePhysicsDraggingRef.current = rightPhysicsRef.current;
                 setDraggingItem('right-earring');
+                canvas.style.cursor = 'grabbing';
                 return;
             }
             return;
@@ -693,11 +852,20 @@ const CanvasPreview = ({
         const canvas = canvasRef.current;
         if (!canvas) return;
 
-        // Earring Live Physics Drag
+        // Earring Live Physics Drag & Dynamic Cursor / Hover Feedback
         if (isEarring) {
+            const { x, y } = getCanvasCoordinates(e, canvas);
             if (activePhysicsDraggingRef.current) {
-                const { x, y } = getCanvasCoordinates(e, canvas);
                 activePhysicsDraggingRef.current.updateDrag(x, y);
+                canvas.style.cursor = 'grabbing';
+            } else {
+                const grabDist = 48;
+                const leftHover = leftPhysicsRef.current ? leftPhysicsRef.current.getNodeAt(x, y, grabDist) : -1;
+                const rightHover = rightPhysicsRef.current ? rightPhysicsRef.current.getNodeAt(x, y, grabDist) : -1;
+                if (leftPhysicsRef.current) leftPhysicsRef.current.hoveredNodeIndex = leftHover;
+                if (rightPhysicsRef.current) rightPhysicsRef.current.hoveredNodeIndex = rightHover;
+
+                canvas.style.cursor = (leftHover !== -1 || rightHover !== -1) ? 'grab' : 'default';
             }
             return;
         }
@@ -732,6 +900,10 @@ const CanvasPreview = ({
             activePhysicsDraggingRef.current.releaseGrab();
             activePhysicsDraggingRef.current = null;
             setDraggingItem(null);
+            const canvas = canvasRef.current;
+            if (canvas) {
+                canvas.style.cursor = 'grab';
+            }
             return;
         }
 
@@ -742,6 +914,22 @@ const CanvasPreview = ({
         if (draggingItem) {
             setDraggingItem(null);
         }
+    };
+
+    const handleMouseLeave = () => {
+        if (isEarring) {
+            if (activePhysicsDraggingRef.current) {
+                activePhysicsDraggingRef.current.releaseGrab();
+                activePhysicsDraggingRef.current = null;
+                setDraggingItem(null);
+            }
+            if (leftPhysicsRef.current) leftPhysicsRef.current.hoveredNodeIndex = -1;
+            if (rightPhysicsRef.current) rightPhysicsRef.current.hoveredNodeIndex = -1;
+            const canvas = canvasRef.current;
+            if (canvas) canvas.style.cursor = 'default';
+            return;
+        }
+        handleMouseUp();
     };
 
     const handleCanvasClickEvent = (e) => {
@@ -777,8 +965,8 @@ const CanvasPreview = ({
     const handleDoubleClick = (e) => {
         if (isEarring) {
             // Double click on earrings to give a gentle playful nudge!
-            leftPhysicsRef.current?.applyImpulse(45, -15);
-            rightPhysicsRef.current?.applyImpulse(-45, -15);
+            leftPhysicsRef.current?.applyImpulse(10, 0);
+            rightPhysicsRef.current?.applyImpulse(-10, 0);
             return;
         }
 
@@ -925,7 +1113,7 @@ const CanvasPreview = ({
                 onMouseDown={handleMouseDown}
                 onMouseMove={handleMouseMove}
                 onMouseUp={handleMouseUp}
-                onMouseLeave={handleMouseUp}
+                onMouseLeave={handleMouseLeave}
                 onContextMenu={handleContextMenu}
                 onTouchStart={handleTouchStart}
                 onTouchMove={handleTouchMove}
@@ -941,7 +1129,7 @@ const CanvasPreview = ({
                     display: 'block',
                     zIndex: 2,
                     cursor: isEarring
-                        ? (activePhysicsDraggingRef.current ? 'grabbing' : 'grab')
+                        ? (activePhysicsDraggingRef.current ? 'grabbing' : undefined)
                         : (isRotatingRef.current ? 'ew-resize' : (draggingItem ? 'grabbing' : 'pointer')),
                     touchAction: 'manipulation'
                 }}

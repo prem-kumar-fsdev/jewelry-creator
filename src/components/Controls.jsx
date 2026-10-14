@@ -1,6 +1,34 @@
-import React, { useState } from "react";
-import { COMPONENTS, METALS, CHAIN_STYLES, BACKDROPS, EARRING_HARDWARE } from "../data/jewelryData";
-import { EARRING_STYLES } from "./Earrings3DStudio";
+import React, { useState, useRef, useEffect } from "react";
+import { COMPONENTS, METALS, CHAIN_STYLES, BACKDROPS, EARRING_HARDWARE, EARRING_STYLES } from "../data/jewelryData";
+import { drawProngLarimarCabochon, drawProngKeshiPearl, drawProngBaroqueCoinPearl } from "../utils/photorealisticRenderer";
+
+const SeededStoneCanvasThumb = ({ renderType, metalKey = "gold" }) => {
+    const canvasRef = useRef(null);
+
+    useEffect(() => {
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const ctx = canvas.getContext("2d");
+        ctx.clearRect(0, 0, 80, 80);
+
+        if (renderType === 'larimar') {
+            drawProngLarimarCabochon(ctx, 40, 40, 0, 36, metalKey, true);
+        } else if (renderType === 'keshi') {
+            drawProngKeshiPearl(ctx, 40, 40, 0, 26, 46, metalKey, true);
+        } else if (renderType === 'baroque-coin') {
+            drawProngBaroqueCoinPearl(ctx, 40, 40, 0, 48, 54, metalKey, true);
+        }
+    }, [renderType, metalKey]);
+
+    return (
+        <canvas
+            ref={canvasRef}
+            width={80}
+            height={80}
+            className="w-full h-full object-contain pointer-events-none"
+        />
+    );
+};
 
 const EARRING_PRICES = {
     'baroque-larimar': 14500,
@@ -24,7 +52,6 @@ const Controls = ({
     onSelectEarringStyle,
     selectedEarringHardware = "hook",
     onSelectEarringHardware,
-    earringStudioMode = "3d",
     earringChain = [],
     onAttachEarringStone,
     onRemoveLastEarringStone,
@@ -77,7 +104,6 @@ const Controls = ({
     };
 
     const isEarring = variantConfig?.type === 'earrings';
-    const is3DEarring = isEarring && earringStudioMode === '3d';
 
     const showEarringCascade = isEarring;
 
@@ -341,7 +367,7 @@ const Controls = ({
                 </div>
 
                 {/* =========================================================================
-                    ACCORDION 03: CASCADE PEARLS & STONES (3D) OR STONES & BEADS (2D)
+                    ACCORDION 03: CASCADE PEARLS & STONES OR STONES & BEADS
                    ========================================================================= */}
                 <div className={`luxury-accordion-item ${openSections.stones ? 'is-open' : ''}`}>
                     <button
@@ -429,28 +455,40 @@ const Controls = ({
                                     </div>
 
                                     {/* Draggable Component Cards Grid */}
-                                    <div className="components-grid stones-grid-3d">
+                                    <div className="components-grid stones-grid-cascade">
                                         {COMPONENTS.filter(comp => {
+                                            if (!comp.forEarrings) return false;
                                             if (stoneCategory === 'pearl') return comp.type === 'pearl';
-                                            if (stoneCategory === 'gemstone') return comp.type === 'gemstone' || comp.id.includes('stone');
+                                            if (stoneCategory === 'gemstone') return comp.type === 'gemstone';
                                             return true;
                                         }).map((comp) => (
                                             <div
                                                 key={comp.id}
-                                                className="component-card-3d"
+                                                className="component-card-cascade"
                                                 draggable="true"
                                                 onDragStart={(e) => {
                                                     e.dataTransfer.setData("application/json", JSON.stringify({ id: comp.id, name: comp.name }));
                                                     e.dataTransfer.effectAllowed = "copy";
                                                 }}
-                                                title={`Drag into 3D view or click to attach ${comp.name}`}
+                                                title={`Drag into canvas or click to attach ${comp.name}`}
                                             >
                                                 <div className="card-thumb-wrap">
-                                                    <img src={comp.image} alt={comp.name} />
+                                                    {comp.renderType ? (
+                                                        <SeededStoneCanvasThumb renderType={comp.renderType} metalKey={selectedMetal} />
+                                                    ) : (
+                                                        <img src={comp.image} alt={comp.name} />
+                                                    )}
                                                     <span className="drag-cue-badge">Drag 🖐️</span>
                                                 </div>
                                                 <div className="card-info">
-                                                    <span className="comp-name">{comp.name}</span>
+                                                    <div className="flex items-center justify-between gap-1 w-full">
+                                                        <span className="comp-name">{comp.name}</span>
+                                                        {comp.shapeTag && (
+                                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#c9a962]/15 text-[#c9a962] font-semibold tracking-wide whitespace-nowrap">
+                                                                {comp.shapeTag}
+                                                            </span>
+                                                        )}
+                                                    </div>
                                                     <span className="comp-price">+PKR {(comp.price * 2).toLocaleString()} <span className="pair-sub">pair</span></span>
                                                 </div>
                                                 <button
@@ -491,7 +529,13 @@ const Controls = ({
                                                 return (
                                                     <div key={`${stoneId}-${idx}`} className="hierarchy-node chained-node">
                                                         <span className="node-link-connector">⛓️</span>
-                                                        <img src={comp?.image} alt={comp?.name} className="node-thumb" />
+                                                        {comp?.renderType ? (
+                                                            <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-black/10">
+                                                                <SeededStoneCanvasThumb renderType={comp.renderType} metalKey={selectedMetal} />
+                                                            </div>
+                                                        ) : (
+                                                            <img src={comp?.image} alt={comp?.name} className="node-thumb" />
+                                                        )}
                                                         <span className="node-label">Tier {idx + 1}: {comp?.name || stoneId}</span>
                                                         <button
                                                             type="button"
@@ -539,7 +583,7 @@ const Controls = ({
                                     )}
 
                                     <div className="components-grid">
-                                        {COMPONENTS.map((comp) => (
+                                        {COMPONENTS.filter(comp => !comp.forEarrings).map((comp) => (
                                             <button
                                                 key={comp.id}
                                                 className={`component-btn ${activeItem && activeItem.id === comp.id ? 'active' : ''}`}
@@ -651,17 +695,15 @@ const Controls = ({
                         <div className="luxury-accordion-inner">
                             {/* Instructions */}
                             <div className="instruction-box">
-                                {is3DEarring ? (
+                                <p className="instruction-highlight">{variantConfig?.instruction}</p>
+                                {isEarring ? (
                                     <>
-                                        <p className="instruction-highlight">🌟 Interactive 3D Physics & Chained Pearls</p>
-                                        <p>• <strong>Drag & Drop:</strong> Drag any pearl or gemstone from above directly into the 3D preview to attach to the last stone in the earring chain.</p>
-                                        <p>• <strong>Symmetric Pair Cascade:</strong> Attached tiers extend both earrings symmetrically with organic physics and matching precious metal jump rings.</p>
-                                        <p>• <strong>Flick & Sway:</strong> Drag any segment to test real-time 60 FPS pendulum momentum and inertia.</p>
-                                        <p>• <strong>Atelier Controls:</strong> Use "Sway Earrings" or "Studio Breeze" to test physical oscillation.</p>
+                                        <p>• <strong>Interactive Physics:</strong> Tug or drag the earrings to feel the physical pendulum motion.</p>
+                                        <p>• <strong>Cascade Tiers:</strong> Drag or click pearls & gemstones above to chain tiers below.</p>
+                                        <p>• <strong>Symmetric Pair:</strong> Earrings mirror each other in real-time with authentic physics.</p>
                                     </>
                                 ) : (
                                     <>
-                                        <p className="instruction-highlight">{variantConfig?.instruction}</p>
                                         <p>Click anywhere along the chain to add charms & beads.</p>
                                         <p>Drag beads along the chain to reposition.</p>
                                         <p>Right-click + drag a stone horizontally to rotate.</p>

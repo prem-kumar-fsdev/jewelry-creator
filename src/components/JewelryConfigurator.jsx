@@ -1,32 +1,7 @@
 import React, { useState, useRef } from "react";
 import CanvasPreview from "./CanvasPreview";
 import Controls from "./Controls";
-import Earrings3DStudio, { EARRING_STYLES } from "./Earrings3DStudio";
-import { COMPONENTS } from "../data/jewelryData";
-
-class StudioErrorBoundary extends React.Component {
-    constructor(props) {
-        super(props);
-        this.state = { hasError: false, error: null };
-    }
-    static getDerivedStateFromError(error) {
-        return { hasError: true, error };
-    }
-    componentDidCatch(error, errorInfo) {
-        console.error("3D Studio Crash:", error, errorInfo);
-    }
-    render() {
-        if (this.state.hasError) {
-            return (
-                <div style={{ position: 'absolute', inset: 0, background: '#1a0000', color: '#ff4444', padding: '2rem', zIndex: 9999, overflow: 'auto' }}>
-                    <h3>3D Studio Render Error</h3>
-                    <pre style={{ fontSize: '11px', whiteSpace: 'pre-wrap' }}>{this.state.error?.stack || this.state.error?.message}</pre>
-                </div>
-            );
-        }
-        return this.props.children;
-    }
-}
+import { COMPONENTS, EARRING_STYLES } from "../data/jewelryData";
 
 const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
     const isEarring = variantConfig.type === 'earrings';
@@ -38,12 +13,11 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
     const [selectedBackdrop, setSelectedBackdrop] = useState("velvet-emerald");
     const [selectedEarringStyle, setSelectedEarringStyle] = useState("baroque-larimar");
     const [selectedEarringHardware, setSelectedEarringHardware] = useState("hook"); // 'hook', 'post', 'wire'
-    const [earringStudioMode, setEarringStudioMode] = useState("3d"); // '3d' or '2d'
     const [earringChain, setEarringChain] = useState([]);
+    const [mobileView, setMobileView] = useState("split"); // 'split' | 'studio' | 'controls'
 
     const canvasRef = useRef(null);
 
-    const is3DEarring = isEarring && earringStudioMode === '3d';
     const generateUuid = () => Math.random().toString(36).substr(2, 9);
 
     const handleAttachEarringStone = (stoneId) => {
@@ -129,7 +103,7 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
         if (canvasRef.current) {
             const url = canvasRef.current.toDataURL("image/png");
             const link = document.createElement("a");
-            const styleTag = is3DEarring ? `-${selectedEarringStyle}` : '';
+            const styleTag = isEarring ? `-${selectedEarringStyle}` : '';
             link.download = `my-custom-${variantConfig.type}${styleTag}-${selectedMetal}.png`;
             link.href = url;
             link.click();
@@ -205,95 +179,98 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
     };
 
     return (
-        <div className="configurator-layout">
-            <div className="preview-area">
+        <div className="flex flex-col lg:flex-row h-[calc(100vh-88px)] sm:h-[calc(100vh-72px)] overflow-hidden bg-[#f7f5f2]">
+            {/* Viewport Canvas */}
+            <div
+                className={`relative overflow-hidden bg-[#0a0a0a] p-0 transition-all duration-300 ${
+                    mobileView === 'studio'
+                        ? 'h-full w-full shrink-0 z-30'
+                        : mobileView === 'controls'
+                        ? 'hidden lg:flex lg:flex-1 lg:h-full shrink-0 lg:shrink'
+                        : 'h-[44vh] sm:h-[50vh] lg:h-full lg:flex-1 w-full shrink-0 lg:shrink'
+                }`}
+            >
                 {/* Animated studio background overlay */}
-                <div className="studio-ambient-glow" />
-                <div className="studio-vignette-frame" />
+                <div className="absolute inset-0 pointer-events-none z-[2] bg-[radial-gradient(ellipse_80%_60%_at_30%_40%,rgba(201,169,98,0.05)_0%,transparent_70%),radial-gradient(ellipse_60%_80%_at_70%_60%,rgba(201,169,98,0.03)_0%,transparent_65%)]" />
+                <div className="absolute inset-0 pointer-events-none z-[2] shadow-[inset_0_0_80px_rgba(0,0,0,0.5)]" />
 
-                {/* Studio Watermark & Mode Switcher Header */}
-                <div className="studio-top-controls">
-                    <div className="studio-watermark">
-                        <span className="watermark-icon">◇</span>
-                        <span className="watermark-text">3D ATELIER STUDIO</span>
+                {/* Studio Header & View Controls */}
+                <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-6 sm:right-6 z-20 flex items-center justify-between pointer-events-none gap-2">
+                    <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/60 text-[10px] sm:text-[11px] font-medium tracking-[1.5px] uppercase shrink-0">
+                        <span className="text-[#c9a962]">◇</span>
+                        <span className="hidden xs:inline">ATELIER STUDIO</span>
+                        <span className="xs:hidden">ATELIER</span>
                     </div>
 
-                    {/* Mode Toggle for Earrings */}
-                    {isEarring && (
-                        <div className="studio-mode-toggle">
+                    <div className="flex items-center gap-1.5 pointer-events-auto ml-auto">
+                        {/* Mobile Expand Studio Toggle Button */}
+                        <div className="lg:hidden flex items-center p-0.5 sm:p-1 rounded-full bg-black/60 backdrop-blur-md border border-white/15 shadow-lg">
                             <button
                                 type="button"
-                                className={`mode-toggle-btn ${earringStudioMode === '3d' ? 'active' : ''}`}
-                                onClick={() => setEarringStudioMode('3d')}
+                                className="flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                                onClick={() => setMobileView(prev => prev === 'studio' ? 'split' : 'studio')}
+                                title={mobileView === 'studio' ? "Restore split controls view" : "Expand studio view"}
                             >
-                                <span className="mode-icon">🌟</span>
-                                <span className="mode-label">3D Real Physics</span>
-                            </button>
-                            <button
-                                type="button"
-                                className={`mode-toggle-btn ${earringStudioMode === '2d' ? 'active' : ''}`}
-                                onClick={() => setEarringStudioMode('2d')}
-                            >
-                                <span className="mode-icon">📐</span>
-                                <span className="mode-label">2D Canvas</span>
+                                <span>{mobileView === 'studio' ? '⇲' : '⛶'}</span>
+                                <span>{mobileView === 'studio' ? 'Split' : 'Expand'}</span>
                             </button>
                         </div>
-                    )}
+                    </div>
                 </div>
 
-                {/* Viewport: Either 3D Three.js Earrings Studio OR 2D Canvas */}
-                {is3DEarring && isActive ? (
-                    <StudioErrorBoundary>
-                        <Earrings3DStudio
-                            selectedMetal={selectedMetal}
-                            selectedBackdrop={selectedBackdrop}
-                            earringStyle={selectedEarringStyle}
-                            selectedEarringHardware={selectedEarringHardware}
-                            attachedChain={earringChain}
-                            onAttachStone={handleAttachEarringStone}
-                            onRemoveLastStone={handleRemoveLastEarringStone}
-                            onResetChain={handleResetEarringChain}
-                            onCanvasReady={handleCanvasReady}
-                        />
-                    </StudioErrorBoundary>
-                ) : (
-                    <CanvasPreview
-                        variantConfig={variantConfig}
-                        configuration={configuration}
-                        selectedMetal={selectedMetal}
-                        selectedChainStyle={selectedChainStyle}
-                        selectedBackdrop={selectedBackdrop}
-                        selectedEarringStyle={selectedEarringStyle}
-                        selectedEarringHardware={selectedEarringHardware}
-                        earringChain={earringChain}
-                        onAttachEarringStone={handleAttachEarringStone}
-                        onCanvasReady={handleCanvasReady}
-                        onCanvasClick={handleCanvasClick}
-                        onDrop={handleDrop}
-                        onItemMove={handleItemMove}
-                        onItemRotate={handleItemRotate}
-                        onItemMirror={handleItemMirror}
-                    />
+                {/* Viewport Canvas */}
+                <CanvasPreview
+                    isActive={isActive}
+                    variantConfig={variantConfig}
+                    configuration={configuration}
+                    selectedMetal={selectedMetal}
+                    selectedChainStyle={selectedChainStyle}
+                    selectedBackdrop={selectedBackdrop}
+                    selectedEarringStyle={selectedEarringStyle}
+                    selectedEarringHardware={selectedEarringHardware}
+                    earringChain={earringChain}
+                    onAttachEarringStone={handleAttachEarringStone}
+                    onCanvasReady={handleCanvasReady}
+                    onCanvasClick={handleCanvasClick}
+                    onDrop={handleDrop}
+                    onItemMove={handleItemMove}
+                    onItemRotate={handleItemRotate}
+                    onItemMirror={handleItemMirror}
+                />
+
+                {/* Floating Switcher on Mobile when in Full Studio View */}
+                {mobileView === 'studio' && (
+                    <div className="lg:hidden absolute bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
+                        <button
+                            type="button"
+                            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/85 backdrop-blur-md border border-[#c9a962]/50 text-white shadow-2xl text-xs font-medium cursor-pointer hover:bg-black"
+                            onClick={() => setMobileView('split')}
+                        >
+                            <span>⚙️</span>
+                            <span>Atelier Controls & Options</span>
+                            <span className="text-[#c9a962]">→</span>
+                        </button>
+                    </div>
                 )}
 
-                {/* Floating Summary Bar at Bottom (2D Canvas only) */}
-                {!is3DEarring && (
-                    <div className="preview-summary-bar">
-                        <span className="summary-badge metal-badge">
+                {/* Floating Summary Bar at Bottom (hidden on very small portrait mobile to keep view clean) */}
+                {mobileView !== 'studio' && (
+                    <div className="hidden sm:flex absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex-wrap items-center justify-center gap-1.5 max-w-[90%] pointer-events-none">
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 text-xs font-medium shadow-lg">
                             ✨ {selectedMetal === 'gold' ? '18k Yellow Gold' : selectedMetal === 'roseGold' ? '18k Rose Gold' : 'Platinum White Gold'}
                         </span>
                         {isEarring && (
-                            <span className="summary-badge hardware-badge">
+                            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 text-xs font-medium shadow-lg">
                                 {selectedEarringHardware === 'post' ? '🧷 Ear Post' : selectedEarringHardware === 'wire' ? '➰ Kidney Wire' : '🪝 French Hook'}
                             </span>
                         )}
-                        <span className="summary-badge style-badge">
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 text-xs font-medium shadow-lg">
                             {isEarring
                                 ? `💎 ${EARRING_STYLES[selectedEarringStyle]?.name || 'Articulated Drop'}`
                                 : `⛓️ ${selectedChainStyle === 'cable' ? 'Luxury Cable' : selectedChainStyle === 'cuban' ? 'Diamond Cuban' : selectedChainStyle === 'rope' ? 'Twisted Rope' : 'Elongated Clip'}`
                             }
                         </span>
-                        <span className="summary-badge count-badge">
+                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 text-xs font-medium shadow-lg">
                             {isEarring
                                 ? `✨ ${earringChain.length} ${earringChain.length === 1 ? 'Tier Chained' : 'Tiers Chained'}`
                                 : `💎 ${configuration.length} ${configuration.length === 1 ? 'Stone Placed' : 'Stones Placed'}`
@@ -303,8 +280,15 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
                 )}
             </div>
 
-            {/* Sidebar Controls */}
-            <div className="sidebar">
+            <div
+                className={`w-full lg:w-[560px] xl:w-[580px] bg-white border-t lg:border-t-0 lg:border-l border-[#e6e3dc] overflow-y-auto transition-all duration-300 ${
+                    mobileView === 'studio'
+                        ? 'hidden lg:block lg:h-full lg:flex-none'
+                        : mobileView === 'controls'
+                        ? 'h-full w-full'
+                        : 'flex-1 min-h-0 lg:h-full lg:flex-none'
+                }`}
+            >
                 <Controls
                     variantConfig={variantConfig}
                     configuration={configuration}
@@ -319,7 +303,6 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
                     onSelectEarringStyle={setSelectedEarringStyle}
                     selectedEarringHardware={selectedEarringHardware}
                     onSelectEarringHardware={setSelectedEarringHardware}
-                    earringStudioMode={earringStudioMode}
                     earringChain={earringChain}
                     onAttachEarringStone={handleAttachEarringStone}
                     onRemoveLastEarringStone={handleRemoveLastEarringStone}

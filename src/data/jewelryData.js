@@ -81,6 +81,136 @@ export const BASE_CONFIG = JEWELRY_VARIANTS.necklace;
 
 export const COMPONENTS = [
   {
+    id: "image_1",
+    aliasId: "earring_stone_larimar_round",
+    name: "Round Larimar Cabochon",
+    image: "/assets/earrings/image_1_vertical.png",
+    rawImage: "/assets/earrings/image_1.PNG",
+    price: 6500,
+    width: 26,
+    height: 38,
+    earringLength: 38,
+    earringWidth: 26,
+    earringMass: 1.1,
+    type: "gemstone",
+    subType: "larimar",
+    shape: "round",
+    shapeTag: "Round",
+    forEarrings: true,
+    description: "Vibrant Caribbean blue round larimar cabochon in solid gold bezel with top and bottom suspension loops"
+  },
+  {
+    id: "image_2",
+    aliasId: "earring_stone_keshi_petal",
+    name: "Elongated Keshi Petal Pearl",
+    image: "/assets/earrings/image_2_vertical.png",
+    rawImage: "/assets/earrings/image_2.PNG",
+    price: 5800,
+    width: 22,
+    height: 46,
+    earringLength: 46,
+    earringWidth: 22,
+    earringMass: 0.95,
+    type: "pearl",
+    subType: "keshi",
+    shape: "elongated",
+    shapeTag: "Elongated",
+    forEarrings: true,
+    description: "Graceful elongated petal keshi pearl radiating pink champagne nacre in gold setting"
+  },
+  {
+    id: "image_3",
+    aliasId: "earring_stone_baton_bar",
+    name: "Slender Baton Stick Pearl",
+    image: "/assets/earrings/image_3_vertical.png",
+    rawImage: "/assets/earrings/image_3.png",
+    price: 5400,
+    width: 15,
+    height: 52,
+    earringLength: 52,
+    earringWidth: 15,
+    earringMass: 0.8,
+    type: "pearl",
+    subType: "baton",
+    shape: "long",
+    shapeTag: "Slender",
+    forEarrings: true,
+    description: "Ultra-slender elongated stick pearl with radiant high luster in gold bezel with top and bottom loops"
+  },
+  {
+    id: "image_4",
+    aliasId: "earring_stone_baroque_drop",
+    name: "Wide Baroque Freeform Pearl",
+    image: "/assets/earrings/image_4_vertical.png",
+    rawImage: "/assets/earrings/image_4.png",
+    price: 6200,
+    width: 28,
+    height: 46,
+    earringLength: 46,
+    earringWidth: 28,
+    earringMass: 1.35,
+    type: "pearl",
+    subType: "baroque",
+    shape: "wide",
+    shapeTag: "Wide",
+    forEarrings: true,
+    description: "Sculptural wide baroque freeform coin pearl with iridescent rainbow nacre in gold setting"
+  },
+  {
+    id: "seeded_larimar",
+    name: "Round Larimar Cabochon (Fine)",
+    image: "/assets/earrings/seeded_larimar.png",
+    price: 6500,
+    width: 26,
+    height: 26,
+    earringLength: 26,
+    earringWidth: 26,
+    earringMass: 0.6,
+    type: "gemstone",
+    subType: "larimar",
+    shape: "round",
+    shapeTag: "Seeded Round",
+    renderType: "larimar",
+    forEarrings: true,
+    description: "Signature Caribbean larimar round cabochon set in artisan gold collet with micro-prongs"
+  },
+  {
+    id: "seeded_keshi",
+    name: "Organic Keshi Petal Pearl",
+    image: "/assets/earrings/seeded_keshi.png",
+    price: 5800,
+    width: 22,
+    height: 38,
+    earringLength: 38,
+    earringWidth: 22,
+    earringMass: 0.85,
+    type: "pearl",
+    subType: "keshi",
+    shape: "elongated",
+    shapeTag: "Seeded Petal",
+    renderType: "keshi",
+    forEarrings: true,
+    description: "Artisan organic petal keshi pearl cradled in articulated gold back-chassis with side-prongs"
+  },
+  {
+    id: "seeded_baroque_coin",
+    name: "Baroque Coin Pearl",
+    image: "/assets/earrings/seeded_baroque_coin.png",
+    price: 6200,
+    width: 48,
+    height: 52,
+    earringLength: 52,
+    earringWidth: 48,
+    earringMass: 2.4,
+    type: "pearl",
+    subType: "baroque",
+    shape: "wide",
+    shapeTag: "Seeded Coin",
+    renderType: "baroque-coin",
+    forEarrings: true,
+    description: "Signature iridescent baroque coin pearl framed in sculptural gold bezel rim with 8 prongs"
+  },
+  {
     id: "tahitian_pearl",
     name: "Tahitian Peacock Pearl",
     image: "/assets/stones/tahitian_pearl.jpg",
@@ -395,6 +525,49 @@ export const EARRING_HARDWARE = {
     tag: "Secure",
     description: "Arched elongated safety ear wire with rear contoured catch latch, dropping into a front suspension loop",
     icon: "wire"
+  }
+};
+
+export const EARRING_STYLES = {
+  'baroque-larimar': {
+    id: 'baroque-larimar',
+    name: 'Baroque Pearl & Larimar Drop',
+    description: 'Lustrous organic baroque pearl with polished sea-foam larimar cabochon in 18k gold',
+    topHardware: 'stud',
+    middleType: 'larimar',
+    dropType: 'baroque-pearl'
+  },
+  'royal-chandelier': {
+    id: 'royal-chandelier',
+    name: 'Royal Sapphire Chandelier',
+    description: 'Brilliant diamond stud cascading to a royal Ceylon blue faceted sapphire briolette drop',
+    topHardware: 'stud',
+    middleType: 'diamond',
+    dropType: 'sapphire-briolette'
+  },
+  'solitaire-drop': {
+    id: 'solitaire-drop',
+    name: 'Solitaire Diamond Drop',
+    description: 'Diamond huggie hoop suspending a giant brilliant-cut diamond drop in 18k gold',
+    topHardware: 'huggie',
+    middleType: 'none',
+    dropType: 'diamond-solitaire'
+  },
+  'amethyst-cascade': {
+    id: 'amethyst-cascade',
+    name: 'Amethyst & Keshi Pearl Cascade',
+    description: 'Imperial amethyst gemstone paired with a lustrous organic freshwater keshi pearl drop',
+    topHardware: 'hook',
+    middleType: 'amethyst',
+    dropType: 'baroque-pearl'
+  },
+  'emerald-cabochon': {
+    id: 'emerald-cabochon',
+    name: 'Colombian Emerald Drop',
+    description: 'Fine gold stud setting with vivid green emerald and tiered baroque teardrop',
+    topHardware: 'stud',
+    middleType: 'emerald',
+    dropType: 'baroque-pearl'
   }
 };
 

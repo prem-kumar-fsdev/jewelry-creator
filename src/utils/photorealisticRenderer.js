@@ -235,7 +235,7 @@ export function drawPhotorealisticChain(ctx, sampledPoints, metalKey = "gold", s
   ctx.lineWidth = width;
   ctx.stroke();
 
-  // 3. Central bright specular highlight to give it a 3D cylindrical wire look
+  // 3. Central bright specular highlight to give it a cylindrical wire look
   ctx.beginPath();
   for (let i = 0; i < sampledPoints.length; i++) {
     const pt = sampledPoints[i];
@@ -341,7 +341,7 @@ export function drawLuxuryEarringStud(ctx, cx, cy, metalKey = "gold") {
   ctx.fillStyle = "rgba(0, 0, 0, 0.4)";
   ctx.fill();
 
-  // Polished 3D metal stud sphere
+  // Polished metal stud sphere
   ctx.beginPath();
   ctx.arc(cx, cy - 90, 8, 0, Math.PI * 2);
   const studGrad = ctx.createRadialGradient(cx - 2.8, cy - 92.8, 1, cx, cy - 90, 8);
@@ -421,31 +421,226 @@ export function drawJumpRingAndBail(ctx, x, y, angle, metalKey = "gold", isBaseB
   ctx.restore();
 }
 
-// ─── Diamond / Gemstone Multi-Point Sparkle ──────────────────────────────────
+// ─── Diamond / Gemstone Multi-Point Sparkle (Animated) ───────────────────────
+
+// Global animation time — updated externally from render loop
+let _globalAnimTime = 0;
+export function setGlobalAnimTime(t) { _globalAnimTime = t; }
+export function getGlobalAnimTime() { return _globalAnimTime; }
 
 export function drawSparkle(ctx, x, y, size = 8, color = "#FFFFFF") {
   ctx.save();
   ctx.translate(x, y);
 
+  // Animated pulse: size and opacity breathe with time
+  const pulse = 0.7 + 0.3 * Math.sin(_globalAnimTime * 3.2 + x * 0.1 + y * 0.07);
+  const alphaPulse = 0.6 + 0.4 * Math.sin(_globalAnimTime * 2.5 + x * 0.15);
+  const animSize = size * pulse;
+
+  ctx.globalAlpha = alphaPulse;
   ctx.fillStyle = color;
   ctx.shadowColor = color;
-  ctx.shadowBlur = 8;
+  ctx.shadowBlur = 8 + 4 * pulse;
+
+  // Slowly rotating 4-point star
+  const rot = _globalAnimTime * 0.4 + x * 0.02;
+  ctx.rotate(rot);
 
   // 4-point star
   ctx.beginPath();
-  ctx.moveTo(0, -size);
-  ctx.quadraticCurveTo(size * 0.12, -size * 0.12, size, 0);
-  ctx.quadraticCurveTo(size * 0.12, size * 0.12, 0, size);
-  ctx.quadraticCurveTo(-size * 0.12, size * 0.12, -size, 0);
-  ctx.quadraticCurveTo(-size * 0.12, -size * 0.12, 0, -size);
+  ctx.moveTo(0, -animSize);
+  ctx.quadraticCurveTo(animSize * 0.12, -animSize * 0.12, animSize, 0);
+  ctx.quadraticCurveTo(animSize * 0.12, animSize * 0.12, 0, animSize);
+  ctx.quadraticCurveTo(-animSize * 0.12, animSize * 0.12, -animSize, 0);
+  ctx.quadraticCurveTo(-animSize * 0.12, -animSize * 0.12, 0, -animSize);
   ctx.fill();
 
   // Core brilliant center
   ctx.beginPath();
-  ctx.arc(0, 0, size * 0.22, 0, Math.PI * 2);
+  ctx.arc(0, 0, animSize * 0.22, 0, Math.PI * 2);
   ctx.fillStyle = "#FFFFFF";
+  ctx.globalAlpha = 1.0;
   ctx.fill();
 
+  ctx.restore();
+}
+
+// ─── Thin Gold Chain Links Between Segments ──────────────────────────────────
+/**
+ * Draws 2–3 tiny articulated gold chain links between two points
+ * (e.g. between the hook eyelet and the first stone collet)
+ */
+export function drawChainLinksBetween(ctx, x1, y1, x2, y2, metalKey = "gold") {
+  const palette = getMetalPalette(metalKey);
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const dist = Math.hypot(dx, dy);
+
+  if (dist < 6) return; // too close, skip
+
+  const linkCount = Math.max(2, Math.min(3, Math.round(dist / 8)));
+  const angle = Math.atan2(dy, dx);
+
+  ctx.save();
+
+  for (let i = 1; i <= linkCount; i++) {
+    const t = i / (linkCount + 1);
+    const cx = x1 + dx * t;
+    const cy = y1 + dy * t;
+    const linkSize = 2.8;
+
+    // Alternate link orientation for interlocking effect
+    const linkAngle = angle + (i % 2 === 0 ? 0.3 : -0.3);
+
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(linkAngle);
+
+    // Shadow
+    ctx.beginPath();
+    ctx.ellipse(0.8, 1.0, linkSize * 0.8, linkSize * 0.5, 0, 0, Math.PI * 2);
+    ctx.strokeStyle = "rgba(0, 0, 0, 0.25)";
+    ctx.lineWidth = 1.2;
+    ctx.stroke();
+
+    // Link body
+    ctx.beginPath();
+    ctx.ellipse(0, 0, linkSize * 0.8, linkSize * 0.5, 0, 0, Math.PI * 2);
+    const lg = ctx.createLinearGradient(-linkSize, -linkSize, linkSize, linkSize);
+    lg.addColorStop(0, palette.highlight);
+    lg.addColorStop(0.4, palette.primary);
+    lg.addColorStop(0.8, palette.secondary);
+    lg.addColorStop(1, palette.deepShadow);
+    ctx.strokeStyle = lg;
+    ctx.lineWidth = 1.4;
+    ctx.stroke();
+
+    // Tiny specular glint
+    ctx.beginPath();
+    ctx.arc(-linkSize * 0.3, -linkSize * 0.2, 0.5, 0, Math.PI * 2);
+    ctx.fillStyle = palette.highlight;
+    ctx.fill();
+
+    ctx.restore();
+  }
+
+  ctx.restore();
+}
+
+// ─── Motion Blur Trail ───────────────────────────────────────────────────────
+/**
+ * Draw a subtle alpha trail behind a fast-moving pearl
+ * velocity: pixel displacement per frame
+ */
+export function drawMotionBlur(ctx, x, y, angle, velocity, width, height) {
+  if (velocity < 3) return; // only show at noticeable speeds
+
+  const intensity = Math.min(0.35, velocity * 0.02);
+  const trailLen = Math.min(20, velocity * 1.5);
+  const hw = (width || 20) / 2;
+  const hh = (height || 20) / 2;
+
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.rotate(angle);
+
+  // Trail gradient in the opposite direction of movement
+  const grad = ctx.createLinearGradient(0, -trailLen, 0, trailLen * 0.5);
+  grad.addColorStop(0, `rgba(255, 250, 240, ${intensity})`);
+  grad.addColorStop(0.5, `rgba(255, 245, 220, ${intensity * 0.5})`);
+  grad.addColorStop(1, `rgba(255, 240, 200, 0)`);
+
+  ctx.beginPath();
+  ctx.ellipse(0, -trailLen * 0.3, hw * 0.7, trailLen * 0.6, 0, 0, Math.PI * 2);
+  ctx.fillStyle = grad;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// ─── Rim Light / Fresnel Edge Glow ───────────────────────────────────────────
+/**
+ * Soft colored rim glow (disabled per user preference to keep pearl silhouettes crisp)
+ */
+export function drawRimGlow(ctx, x, y, angle, radius, metalKey = "gold") {
+  // Disabled: removed diffuse halo rings around pearls
+}
+
+// ─── Drag Aura (Radial Glow Around Active Pearl) ─────────────────────────────
+export function drawDragAura(ctx, x, y, radius = 30) {
+  const pulse = 0.6 + 0.4 * Math.sin(_globalAnimTime * 4);
+  ctx.save();
+
+  const auraGrad = ctx.createRadialGradient(x, y, radius * 0.4, x, y, radius * 1.8);
+  auraGrad.addColorStop(0, `rgba(255, 215, 80, ${0.25 * pulse})`);
+  auraGrad.addColorStop(0.4, `rgba(255, 200, 60, ${0.15 * pulse})`);
+  auraGrad.addColorStop(0.7, `rgba(255, 180, 40, ${0.05 * pulse})`);
+  auraGrad.addColorStop(1, "rgba(255, 180, 40, 0)");
+
+  ctx.beginPath();
+  ctx.arc(x, y, radius * 1.8, 0, Math.PI * 2);
+  ctx.fillStyle = auraGrad;
+  ctx.fill();
+
+  ctx.restore();
+}
+
+// ─── Hover Glow Ring ─────────────────────────────────────────────────────────
+export function drawHoverGlow(ctx, x, y, radius = 25) {
+  ctx.save();
+
+  const pulse = 0.5 + 0.5 * Math.sin(_globalAnimTime * 3);
+  ctx.beginPath();
+  ctx.arc(x, y, radius + 4, 0, Math.PI * 2);
+  ctx.strokeStyle = `rgba(255, 215, 80, ${0.3 * pulse})`;
+  ctx.lineWidth = 2;
+  ctx.shadowColor = "rgba(255, 215, 80, 0.4)";
+  ctx.shadowBlur = 8;
+  ctx.stroke();
+
+  ctx.restore();
+}
+
+// ─── Particle Burst Renderer ─────────────────────────────────────────────────
+export function drawParticleBursts(ctx, bursts = []) {
+  if (!bursts || bursts.length === 0) return;
+
+  ctx.save();
+  for (const burst of bursts) {
+    for (const p of burst.particles) {
+      if (p.life <= 0) continue;
+
+      const alpha = Math.max(0, p.life) * 0.9;
+      const s = p.size * Math.max(0.3, p.life);
+
+      // Sparkle star shape
+      ctx.save();
+      ctx.translate(p.x, p.y);
+      ctx.rotate(_globalAnimTime * 5 + p.x);
+      ctx.globalAlpha = alpha;
+
+      ctx.fillStyle = "#FFD700";
+      ctx.shadowColor = "#FFD700";
+      ctx.shadowBlur = 6;
+
+      // Small 4-point star
+      ctx.beginPath();
+      ctx.moveTo(0, -s);
+      ctx.quadraticCurveTo(s * 0.15, -s * 0.15, s, 0);
+      ctx.quadraticCurveTo(s * 0.15, s * 0.15, 0, s);
+      ctx.quadraticCurveTo(-s * 0.15, s * 0.15, -s, 0);
+      ctx.quadraticCurveTo(-s * 0.15, -s * 0.15, 0, -s);
+      ctx.fill();
+
+      // White core
+      ctx.beginPath();
+      ctx.arc(0, 0, s * 0.3, 0, Math.PI * 2);
+      ctx.fillStyle = "#FFFFFF";
+      ctx.fill();
+
+      ctx.restore();
+    }
+  }
   ctx.restore();
 }
 
@@ -970,8 +1165,11 @@ export function drawProngLarimarCabochon(ctx, x, y, angle = 0, size = 26, metalK
   ctx.fillStyle = "rgba(255, 255, 255, 0.3)";
   ctx.fill();
 
-  // Cabochon domed specular highlight
-  const domeHighlight = ctx.createRadialGradient(-r * 0.35, -r * 0.4, 0.5, -r * 0.35, -r * 0.4, r * 0.6);
+  // Cabochon domed specular highlight (angle-reactive: shifts with pearl swing)
+  const highlightShift = Math.sin(angle) * r * 0.4; // highlight slides opposite to swing
+  const hlX = -r * 0.35 + highlightShift;
+  const hlY = -r * 0.4;
+  const domeHighlight = ctx.createRadialGradient(hlX, hlY, 0.5, hlX, hlY, r * 0.6);
   domeHighlight.addColorStop(0, "rgba(255, 255, 255, 0.85)");
   domeHighlight.addColorStop(0.45, "rgba(255, 255, 255, 0.25)");
   domeHighlight.addColorStop(1, "rgba(255, 255, 255, 0)");
@@ -1082,8 +1280,9 @@ export function drawProngKeshiPearl(ctx, x, y, angle = 0, width = 22, height = 3
   ctx.fillStyle = pearlGrad;
   ctx.fill();
 
-  // Subtle iridescent blush / peacock overtone
-  const nacreOvertone = ctx.createRadialGradient(-hw * 0.2, -hh * 0.3, 2, 0, 0, hh);
+  // Subtle iridescent blush / peacock overtone (angle-reactive)
+  const keshiShift = Math.sin(angle) * hw * 0.3;
+  const nacreOvertone = ctx.createRadialGradient(-hw * 0.2 + keshiShift, -hh * 0.3, 2, 0, 0, hh);
   nacreOvertone.addColorStop(0, "rgba(255, 255, 255, 0.8)");
   nacreOvertone.addColorStop(0.35, "rgba(255, 235, 240, 0.4)");
   nacreOvertone.addColorStop(0.65, "rgba(230, 245, 250, 0.3)");
@@ -1091,10 +1290,10 @@ export function drawProngKeshiPearl(ctx, x, y, angle = 0, width = 22, height = 3
   ctx.fillStyle = nacreOvertone;
   ctx.fill();
 
-  // Satiny pearl highlight sheen line
+  // Satiny pearl highlight sheen line (angle-reactive shift)
   ctx.beginPath();
-  ctx.moveTo(-hw * 0.15, -hh * 0.7);
-  ctx.bezierCurveTo(-hw * 0.3, -hh * 0.2, -hw * 0.2, hh * 0.2, -hw * 0.05, hh * 0.6);
+  ctx.moveTo(-hw * 0.15 + keshiShift, -hh * 0.7);
+  ctx.bezierCurveTo(-hw * 0.3 + keshiShift, -hh * 0.2, -hw * 0.2 + keshiShift, hh * 0.2, -hw * 0.05 + keshiShift, hh * 0.6);
   ctx.strokeStyle = "rgba(255, 255, 255, 0.75)";
   ctx.lineWidth = 2.4;
   ctx.lineCap = "round";
@@ -1226,8 +1425,9 @@ export function drawProngBaroqueCoinPearl(ctx, x, y, angle = 0, width = 48, heig
   ctx.shadowBlur = 6;
   ctx.fill();
 
-  // Soft iridescent pink/champagne shimmer halo
-  const sheenHalo = ctx.createRadialGradient(-hw * 0.2, -hh * 0.25, 0, 0, 0, hw);
+  // Soft iridescent pink/champagne shimmer halo (angle-reactive)
+  const baroqueShift = Math.sin(angle) * hw * 0.35;
+  const sheenHalo = ctx.createRadialGradient(-hw * 0.2 + baroqueShift, -hh * 0.25, 0, 0, 0, hw);
   sheenHalo.addColorStop(0, "rgba(255, 255, 255, 0.9)");
   sheenHalo.addColorStop(0.35, "rgba(255, 240, 245, 0.5)");
   sheenHalo.addColorStop(0.7, "rgba(240, 248, 255, 0.25)");
@@ -1235,9 +1435,9 @@ export function drawProngBaroqueCoinPearl(ctx, x, y, angle = 0, width = 48, heig
   ctx.fillStyle = sheenHalo;
   ctx.fill();
 
-  // Specular gleam across the organic dome
+  // Specular gleam across the organic dome (angle-reactive shift)
   ctx.beginPath();
-  ctx.ellipse(-hw * 0.25, -hh * 0.32, hw * 0.38, hh * 0.24, -0.3, 0, Math.PI * 2);
+  ctx.ellipse(-hw * 0.25 + baroqueShift, -hh * 0.32, hw * 0.38, hh * 0.24, -0.3, 0, Math.PI * 2);
   ctx.fillStyle = "rgba(255, 255, 255, 0.7)";
   ctx.fill();
 
@@ -1285,12 +1485,53 @@ export function drawProngBaroqueCoinPearl(ctx, x, y, angle = 0, width = 48, heig
  */
 export function drawCustomTierElement(ctx, x, y, angle = 0, compData, metalKey = "gold", loadedImg = null, isLast = false) {
   const palette = getMetalPalette(metalKey);
-  const size = 28;
-  const r = size / 2;
 
   ctx.save();
   ctx.translate(x, y);
   ctx.rotate(angle);
+
+  // Check if this is an authentic photographic earring stone (image_1, 2, 3, 4)
+  const isEarringStone = compData?.id?.startsWith('image_') || compData?.earringLength || compData?.rawImage;
+
+  if (isEarringStone && loadedImg) {
+    const w = compData.earringWidth || compData.width || 26;
+    const h = compData.earringLength || compData.height || 42;
+    const hw = w / 2;
+    const hh = h / 2;
+
+    // Contact drop shadow onto backdrop
+    ctx.save();
+    ctx.beginPath();
+    ctx.ellipse(3, 4, hw * 0.92, hh * 0.88, 0, 0, Math.PI * 2);
+    ctx.fillStyle = "rgba(0, 0, 0, 0.42)";
+    ctx.shadowColor = "rgba(0, 0, 0, 0.6)";
+    ctx.shadowBlur = 10;
+    ctx.shadowOffsetX = 3;
+    ctx.shadowOffsetY = 4;
+    ctx.fill();
+    ctx.restore();
+
+    // Check if image is raw horizontal (width > height), auto-rotate if so
+    if (loadedImg.width > loadedImg.height) {
+      ctx.save();
+      ctx.rotate(Math.PI / 2);
+      ctx.drawImage(loadedImg, -hh, -hw, h, w);
+      ctx.restore();
+    } else {
+      ctx.drawImage(loadedImg, -hw, -hh, w, h);
+    }
+
+    // Dynamic angle-reactive specular gleam on bezel
+    const gleamShift = Math.sin(angle) * hw * 0.3;
+    drawSparkle(ctx, -hw * 0.25 + gleamShift, -hh * 0.28, 4.5, "#FFFFFF");
+
+    ctx.restore();
+    return;
+  }
+
+  // Fallback: Generic Bead / Gemstone in Collet Cup
+  const size = 28;
+  const r = size / 2;
 
   // Cast shadow
   ctx.beginPath();

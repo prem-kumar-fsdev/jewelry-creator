@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import JewelryConfigurator from "./components/JewelryConfigurator";
 import { JEWELRY_VARIANTS } from "./data/jewelryData";
-import "./App.css";
 
 const TABS = [
   {
@@ -48,28 +47,37 @@ function App() {
   const [activeTab, setActiveTab] = useState("earrings");
 
   return (
-    <div className="app-container">
+    <div className="flex flex-col min-h-screen bg-[#f7f5f2] font-sans antialiased text-[#222222]">
       {/* Top Header & Variant Tabs Navigation */}
-      <header className="app-header">
-        <div className="brand-section">
-          <span className="brand-badge">Bespoke Atelier</span>
-          <h1 className="brand-logo">AURA FINE JEWELRY</h1>
+      <header className="sticky top-0 z-50 flex flex-col sm:flex-row items-center justify-between px-4 sm:px-6 lg:px-10 py-2 sm:py-3.5 bg-white border-b border-[#e6e3dc] shadow-[0_2px_8px_rgba(0,0,0,0.05)] gap-2 sm:gap-4">
+        <div className="flex sm:flex-col items-center sm:items-start justify-between w-full sm:w-auto">
+          <div className="flex flex-col gap-0.5 text-center sm:text-left w-full sm:w-auto">
+            <span className="text-[8.5px] sm:text-[10px] font-bold tracking-[1.5px] sm:tracking-[2px] text-[#c9a962] uppercase">Bespoke Atelier</span>
+            <h1 className="m-0 font-serif text-[1.15rem] sm:text-[1.35rem] font-semibold tracking-[1px] sm:tracking-[2px] text-[#222222]">
+              AURA FINE JEWELRY
+            </h1>
+          </div>
         </div>
 
-        {/* 3 Jewelry Variant Tabs */}
-        <nav className="jewelry-nav-tabs" aria-label="Jewelry Categories">
+        {/* 3 Jewelry Variant Tabs (Perfect 3-way split on mobile) */}
+        <nav className="grid grid-cols-3 w-full sm:flex sm:w-auto gap-1 sm:gap-2 bg-[#f7f5f2] p-1 sm:p-1.5 rounded-full border border-[#e6e3dc]" aria-label="Jewelry Categories">
           {TABS.map((tab) => {
             const isActive = activeTab === tab.key;
             return (
               <button
                 key={tab.key}
                 type="button"
-                className={`tab-btn ${isActive ? "active" : ""}`}
+                className={`flex items-center justify-center gap-1 sm:gap-2 px-1 sm:px-4 py-1.5 sm:py-2 rounded-full text-[11px] sm:text-sm font-medium transition-all duration-200 cursor-pointer ${
+                  isActive
+                    ? "bg-white text-[#1a5f5a] font-semibold shadow-[0_2px_10px_rgba(0,0,0,0.08)]"
+                    : "text-[#666666] hover:text-[#222222] hover:bg-white/60"
+                }`}
                 onClick={() => setActiveTab(tab.key)}
               >
-                <span className="tab-icon">{tab.icon}</span>
-                <span className="tab-text">{tab.label}</span>
-                {isActive && <span className="tab-active-indicator" />}
+                <span className={`flex items-center justify-center shrink-0 transition-colors [&>svg]:w-3.5 [&>svg]:h-3.5 sm:[&>svg]:w-4 sm:[&>svg]:h-4 ${isActive ? "text-[#c9a962]" : "text-current"}`}>
+                  {tab.icon}
+                </span>
+                <span className="tracking-[0.2px] truncate">{tab.label}</span>
               </button>
             );
           })}
@@ -77,13 +85,13 @@ function App() {
       </header>
 
       {/* Main Configurator Area: Keeping independent configurator instances to preserve designs */}
-      <main className="main-content">
+      <main className="flex-1 flex flex-col">
         {TABS.map((tab) => {
           const isCurrent = activeTab === tab.key;
           return (
             <div
               key={tab.key}
-              className={`configurator-view-wrapper ${isCurrent ? "active-view" : "hidden-view"}`}
+              className={`w-full h-full ${isCurrent ? "block" : "hidden"}`}
               style={{ display: isCurrent ? "block" : "none" }}
             >
               <JewelryConfigurator variantConfig={JEWELRY_VARIANTS[tab.key]} isActive={isCurrent} />
