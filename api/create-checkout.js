@@ -1,4 +1,5 @@
 import { BRACELET_STONES, isValidDesign } from '../src/data/braceletData.js';
+import { isValidNecklace } from '../src/data/necklaceData.js';
 import process from 'node:process';
 
 export default async function handler(req, res) {
@@ -29,8 +30,12 @@ export default async function handler(req, res) {
     }
 
     const isBracelet = req.body.jewelryType === 'bracelet';
+    const isNecklace = req.body.jewelryType === 'necklace';
     if (isBracelet && !isValidDesign({ version: 1, name: req.body.designName, metal: req.body.metal, chain: req.body.chainStyle, size: req.body.braceletSize, items: configuration })) {
       return res.status(400).json({ error: 'Invalid bracelet design' });
+    }
+    if (isNecklace && !isValidNecklace({ version: 1, name: req.body.designName, metal: req.body.metal, chain: req.body.chainStyle, size: req.body.necklaceSize, items: configuration })) {
+      return res.status(400).json({ error: 'Invalid necklace design' });
     }
 
     // ---------------------------------------------------------
@@ -38,7 +43,7 @@ export default async function handler(req, res) {
     // ---------------------------------------------------------
     
     // Master Price List (Must match or override frontend data)
-    const BASE_PRICE_PKR = 5000;
+    const BASE_PRICE_PKR = isNecklace ? 7500 : 5000;
     const PRICING_TABLE = {
       "amethyst": 4500,
       "pearl": 3000,
@@ -61,7 +66,7 @@ export default async function handler(req, res) {
     const gemCount = configuration.filter(item => item.id !== null).length; // Restored for metadata
     const componentsPrice = configuration.reduce((total, item) => {
         if (!item.id) return total; 
-        const itemPrice = isBracelet ? BRACELET_STONES.find(stone => stone.id === item.id).price : PRICING_TABLE[item.id] || PRICING_TABLE["default"];
+        const itemPrice = isBracelet || isNecklace ? BRACELET_STONES.find(stone => stone.id === item.id).price : PRICING_TABLE[item.id] || PRICING_TABLE["default"];
         return total + itemPrice;
     }, 0);
 
@@ -92,11 +97,11 @@ export default async function handler(req, res) {
                 { name: "Base Model", value: baseProductId || "Standard Gold Chain" },
                 { name: "Gem Count", value: gemCount.toString() },
                 { name: "Design ID", value: `CFG-${Date.now()}` }, // Unique ID for reference
-                ...(isBracelet ? [
+                ...(isBracelet || isNecklace ? [
                   { name: 'Design name', value: req.body.designName || 'Untitled bracelet' },
                   { name: 'Metal', value: req.body.metal },
                   { name: 'Chain style', value: req.body.chainStyle },
-                  { name: 'Bracelet length', value: `${req.body.braceletSize} cm` },
+                  { name: isNecklace ? 'Necklace length' : 'Bracelet length', value: `${isNecklace ? req.body.necklaceSize : req.body.braceletSize} cm` },
                   { name: 'Charm arrangement', value: JSON.stringify(configuration.map(({ id, angle, rotation, scale, mirrored }) => ({ id, angle, ...(rotation !== undefined ? { rotation } : {}), ...(scale !== undefined ? { scale } : {}), ...(mirrored !== undefined ? { mirrored } : {}) }))) },
                 ] : []),
                 // You can verify this ID later to rebuild the visual in the admin panel if needed

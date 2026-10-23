@@ -95,8 +95,8 @@ function App() {
               className={`w-full h-full ${isCurrent ? "block" : "hidden"}`}
               style={{ display: isCurrent ? "block" : "none" }}
             >
-              {tab.key === 'bracelet'
-                ? <BraceletStudio isActive={isCurrent} />
+              {tab.key === 'bracelet' || tab.key === 'necklace'
+                ? <BraceletStudio variant={tab.key} isActive={isCurrent} />
                 : <JewelryConfigurator variantConfig={JEWELRY_VARIANTS[tab.key]} isActive={isCurrent} />}
             </div>
           );

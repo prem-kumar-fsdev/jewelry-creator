@@ -8,6 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "test:bracelet": "node --test scripts/test-bracelet.mjs scripts/test-bracelet-checkout.mjs",
+    "test:necklace": "node --test scripts/test-necklace.mjs",
     "preview": "vite preview"
   },
   "dependencies": {

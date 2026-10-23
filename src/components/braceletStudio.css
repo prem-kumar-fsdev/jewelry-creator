@@ -1,4 +1,12 @@
 .bracelet-studio { --studio-ink: #2e4439; --studio-muted: #7b8075; --studio-line: #e2e3d9; --studio-paper: #faf9f5; color: var(--studio-ink); background: #f6f5f0; padding: 30px 40px 26px; font-family: 'Inter', 'Segoe UI', sans-serif; }
+.necklace-studio { --studio-ink: #564536; --studio-muted: #918477; --studio-line: #e6ddd1; background: #f7f3ed; }
+.necklace-studio .studio-button.primary { background: #65513f; border-color: #65513f; }
+.necklace-studio .studio-button.primary:hover { background: #7b644e; }
+.necklace-studio .design-panel { background: #fffcf7; border-color: #e6ddd1; }
+.necklace-studio .preset-card { background: #eee6db; }
+.necklace-studio .mini-bracelet { border-top: 0; border-radius: 0 0 50% 50%; transform: none; height: 33px; }
+.necklace-studio .photo-collection-note { background: #f1eadd; border-color: #b8a383; }
+.necklace-studio .stone-library > button { background: #faf5ec; border-color: #e7ded0; }
 .bracelet-studio button { cursor: pointer; font: inherit; }
 .bracelet-studio button:disabled { opacity: .35; cursor: not-allowed; }
 .bracelet-studio button, .bracelet-studio input { -webkit-tap-highlight-color: transparent; }

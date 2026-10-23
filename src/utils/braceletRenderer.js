@@ -104,26 +104,54 @@ export function drawBracelet(ctx, width, height, model, design, options = {}) {
   ctx.globalAlpha = .065; ctx.fillStyle = scene.ink;
   for (let i = 0; i < 1100; i++) ctx.fillRect((i * 137.509) % 800, (i * 79.713) % 640, .7, .7);
   ctx.restore();
+  if (model.open && options.view !== 'flat') {
+    // A softly raised jewelry display form behind the suspended necklace.
+    ctx.save();
+    ctx.beginPath(); ctx.moveTo(220, 86);
+    ctx.bezierCurveTo(244, 35, 556, 35, 580, 86);
+    ctx.bezierCurveTo(580, 230, 632, 362, 650, 505);
+    ctx.quadraticCurveTo(400, 565, 150, 505);
+    ctx.bezierCurveTo(168, 362, 220, 230, 220, 86); ctx.closePath();
+    const form = ctx.createLinearGradient(150, 120, 650, 440);
+    form.addColorStop(0, scene.id === 'midnight' ? '#26322d' : '#f9f4eb');
+    form.addColorStop(.5, scene.id === 'midnight' ? '#35413a' : '#fffaf1');
+    form.addColorStop(1, scene.id === 'midnight' ? '#1d2923' : '#d9ccba');
+    ctx.shadowColor = '#19201625'; ctx.shadowBlur = 25; ctx.shadowOffsetY = 12;
+    ctx.fillStyle = form; ctx.fill(); ctx.shadowColor = 'transparent';
+    ctx.strokeStyle = '#ffffff20'; ctx.lineWidth = 1; ctx.stroke(); ctx.restore();
+  }
   // Broad, soft contact shadow underneath the jewelry.
   ctx.save(); ctx.translate(3, 8); ctx.beginPath();
-  model.nodes.forEach((n, i) => i ? ctx.lineTo(n.x, n.y) : ctx.moveTo(n.x, n.y)); ctx.closePath();
+  model.nodes.forEach((n, i) => i ? ctx.lineTo(n.x, n.y) : ctx.moveTo(n.x, n.y)); if (!model.open) ctx.closePath();
   ctx.strokeStyle = 'rgba(26,35,22,.12)'; ctx.lineWidth = 11; ctx.filter = 'blur(7px)'; ctx.stroke(); ctx.restore();
-  const count = design.chain === 'paperclip' ? 64 : design.chain === 'rope' ? 200 : 108;
+  const distances = [0];
+  if (model.open) model.lengths.forEach(length => distances.push(distances.at(-1) + length));
+  const count = model.open ? Math.ceil(distances.at(-1) / (design.chain === 'paperclip' ? 17.5 : design.chain === 'rope' ? 5.8 : 10.4)) : design.chain === 'paperclip' ? 64 : design.chain === 'rope' ? 200 : 108;
   for (let i = 0; i < count; i++) {
     // Leave a real opening for the clasp at the top of the bracelet.
-    const angle = -Math.PI / 2 + .08 + i / (count - 1) * (TAU - .16);
+    let angle = -Math.PI / 2 + .08 + i / (count - 1) * (TAU - .16);
+    if (model.open) {
+      const distance = i / (count - 1) * distances.at(-1);
+      const segment = Math.min(distances.length - 2, Math.max(0, distances.findIndex(value => value >= distance) - 1));
+      const t = (distance - distances[segment]) / (distances[segment + 1] - distances[segment]);
+      angle = (segment + t) / (model.nodes.length - 1) * Math.PI;
+    }
     const p = pointOnBracelet(model, angle);
     const length = design.chain === 'paperclip' ? 10.5 : design.chain === 'rope' ? 4.2 : 6.4;
     const w = design.chain === 'paperclip' ? (i % 2 ? 2.3 : 4.4) : design.chain === 'rope' ? 3.1 : (i % 2 ? 1.8 : 3.5);
     drawLink(ctx, p.x, p.y, p.tangent + (design.chain === 'rope' ? .65 : 0), design.metal, length, w, design.chain === 'rope' ? 1.8 : 2);
   }
-  const clasp = pointOnBracelet(model, -Math.PI / 2);
+  const clasp = pointOnBracelet(model, model.open ? 0 : -Math.PI / 2);
   drawLink(ctx, clasp.x, clasp.y, 0, design.metal, 12, 6, 3.5);
   drawLink(ctx, clasp.x + 7, clasp.y + 5, -.5, design.metal, 4, 2, 1.6);
   // Hallmark tag alongside the closure.
   ctx.save(); ctx.translate(clasp.x - 19, clasp.y + 10); ctx.rotate(.4);
   ctx.fillStyle = metalGradient(ctx, design.metal); ctx.beginPath(); ctx.roundRect(-4, -5, 8, 13, 3); ctx.fill();
   ctx.fillStyle = METAL[design.metal][0]; ctx.font = '4px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('A', 0, 3); ctx.restore();
+  if (model.open) {
+    const end = pointOnBracelet(model, Math.PI);
+    drawLink(ctx, end.x, end.y, 0, design.metal, 5, 5, 1.7);
+  }
   const hits = [];
   [...design.items].sort((a, b) => Math.sin(a.angle) - Math.sin(b.angle)).forEach(item => {
     const p = charmPosition(model, item);

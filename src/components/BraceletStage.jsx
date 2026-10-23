@@ -1,12 +1,13 @@
 import { useEffect, useImperativeHandle, useRef } from 'react';
-import { createBraceletPhysics, freeAngle, nearestAngle, stepBracelet, TAU } from '../utils/braceletPhysics';
+import { createBraceletPhysics, createNecklacePhysics, freeAngle, nearestAngle, stepBracelet, TAU } from '../utils/braceletPhysics';
+import { NECKLACE_MIN_ANGLE, NECKLACE_MAX_ANGLE } from '../data/necklaceData';
 import { drawBracelet } from '../utils/braceletRenderer';
 import { BRACELET_SCENES, stoneById, charmScale } from '../data/braceletData';
 import { METALS } from '../data/jewelryData';
 import { loadPhotoTextures } from '../utils/braceletPhotoAssets';
 import { charmGeometry, hitCharm } from '../utils/braceletCharms';
 
-export default function BraceletStage({ ref, design, scene, zoom, view, selected, onSelect, onMove, onAdd, onAssetError, active, presenting }) {
+export default function BraceletStage({ ref, design, scene, zoom, view, selected, onSelect, onMove, onAdd, onAssetError, active, presenting, variant = 'bracelet' }) {
   const canvasRef = useRef(null);
   const runtime = useRef({ model: null, drag: null, layout: null, design, dirty: true });
 
@@ -16,29 +17,29 @@ export default function BraceletStage({ ref, design, scene, zoom, view, selected
       const canvas = document.createElement('canvas');
       canvas.width = 1800; canvas.height = 1600;
       const ctx = canvas.getContext('2d');
-      const model = createBraceletPhysics(design.size, view === 'drape');
-      drawBracelet(ctx, 1800, 1440, model, design, { scene });
+      const model = (variant === 'necklace' ? createNecklacePhysics : createBraceletPhysics)(design.size, view === 'drape');
+      drawBracelet(ctx, 1800, 1440, model, design, { scene, view });
       const palette = BRACELET_SCENES.find(s => s.id === scene);
       ctx.fillStyle = '#f8f6f0'; ctx.fillRect(0, 1440, 1800, 160);
-      ctx.fillStyle = '#2d3c33'; ctx.font = '40px Georgia'; ctx.fillText(design.name || 'Untitled bracelet', 80, 1505, 1380);
+      ctx.fillStyle = '#2d3c33'; ctx.font = '40px Georgia'; ctx.fillText(design.name || `Untitled ${variant}`, 80, 1505, 1380);
       ctx.font = '19px sans-serif'; ctx.fillStyle = '#77796e';
       ctx.fillText(`${METALS[design.metal].shortName}  /  ${design.size} cm  /  ${design.items.length} charms  /  ${palette.name}`, 80, 1550);
       ctx.textAlign = 'right'; ctx.font = '27px Georgia'; ctx.fillStyle = '#2d3c33'; ctx.fillText('A U R A', 1720, 1510);
       ctx.font = '13px sans-serif'; ctx.fillText('A PIECE OF YOUR OWN', 1720, 1544);
       return {
-        filename: `${(design.name || 'bracelet').replace(/[^a-z0-9-]/gi, '-').toLowerCase()}-aura.png`,
+        filename: `${(design.name || variant).replace(/[^a-z0-9-]/gi, '-').toLowerCase()}-aura.png`,
         url: canvas.toDataURL('image/png'),
       };
     },
     previewImage() { return canvasRef.current?.toDataURL('image/png'); },
-  }), [design, scene, view]);
+  }), [design, scene, view, variant]);
 
   useEffect(() => {
     const state = runtime.current;
-    state.model = createBraceletPhysics(design.size, view === 'drape');
+    state.model = (variant === 'necklace' ? createNecklacePhysics : createBraceletPhysics)(design.size, view === 'drape');
     state.dirty = true;
     state.drag = null;
-  }, [design.size, view]);
+  }, [design.size, view, variant]);
 
   useEffect(() => {
     const state = runtime.current;
@@ -119,7 +120,7 @@ export default function BraceletStage({ ref, design, scene, zoom, view, selected
     } else {
       const near = nearestAngle(state.model, point.x, point.y);
       onSelect(null);
-      if (near.distance < 23) state.drag = { type: 'chain', index: Math.round(near.angle / TAU * state.model.nodes.length) % state.model.nodes.length, ...point };
+      if (near.distance < 23) state.drag = { type: 'chain', index: state.model.open ? Math.round(near.angle / Math.PI * (state.model.nodes.length - 1)) : Math.round(near.angle / TAU * state.model.nodes.length) % state.model.nodes.length, ...point };
     }
     if (state.drag) canvasRef.current.setPointerCapture(event.pointerId);
   };
@@ -133,7 +134,7 @@ export default function BraceletStage({ ref, design, scene, zoom, view, selected
     }
     canvasRef.current.style.cursor = 'grabbing';
     if (state.drag.type === 'charm') {
-      const angle = freeAngle(state.design.items, nearestAngle(state.model, point.x - state.drag.offsetX, point.y - state.drag.offsetY).angle, state.drag.uuid);
+      const angle = freeAngle(state.design.items, nearestAngle(state.model, point.x - state.drag.offsetX, point.y - state.drag.offsetY).angle, state.drag.uuid, {}, state.model.open ? [NECKLACE_MIN_ANGLE, NECKLACE_MAX_ANGLE] : null);
       if (angle !== null) {
         state.design = { ...state.design, items: state.design.items.map(item => item.uuid === state.drag.uuid ? { ...item, angle } : item) };
         const charm = state.model.charms.get(state.drag.uuid);
@@ -156,7 +157,7 @@ export default function BraceletStage({ ref, design, scene, zoom, view, selected
     canvasRef.current.style.cursor = 'grab';
   };
 
-  return <canvas ref={canvasRef} className="bracelet-canvas" aria-label="Interactive bracelet preview. Drag a charm to reposition it, or pull the chain to feel its movement. Use the selected charm controls for keyboard editing."
+  return <canvas ref={canvasRef} className="bracelet-canvas" aria-label={`Interactive ${variant} preview. Drag a charm to reposition it, or pull the chain to feel its movement. Use the selected charm controls for keyboard editing.`}
     onPointerDown={down} onPointerMove={move} onPointerUp={release} onPointerCancel={event => release(event, true)}
     onLostPointerCapture={event => { if (runtime.current.drag) release(event, true); }}
     onDragOver={event => { if (!presenting) event.preventDefault(); }}
