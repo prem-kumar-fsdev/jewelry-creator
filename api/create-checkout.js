@@ -1,3 +1,6 @@
+import { BRACELET_STONES, isValidDesign } from '../src/data/braceletData.js';
+import process from 'node:process';
+
 export default async function handler(req, res) {
   // 1. CORS Headers (Optional but good for local dev/different domains)
   res.setHeader('Access-Control-Allow-Credentials', true);
@@ -23,6 +26,11 @@ export default async function handler(req, res) {
 
     if (!configuration || !Array.isArray(configuration)) {
       throw new Error("Invalid configuration data");
+    }
+
+    const isBracelet = req.body.jewelryType === 'bracelet';
+    if (isBracelet && !isValidDesign({ version: 1, name: req.body.designName, metal: req.body.metal, chain: req.body.chainStyle, size: req.body.braceletSize, items: configuration })) {
+      return res.status(400).json({ error: 'Invalid bracelet design' });
     }
 
     // ---------------------------------------------------------
@@ -53,7 +61,7 @@ export default async function handler(req, res) {
     const gemCount = configuration.filter(item => item.id !== null).length; // Restored for metadata
     const componentsPrice = configuration.reduce((total, item) => {
         if (!item.id) return total; 
-        const itemPrice = PRICING_TABLE[item.id] || PRICING_TABLE["default"];
+        const itemPrice = isBracelet ? BRACELET_STONES.find(stone => stone.id === item.id).price : PRICING_TABLE[item.id] || PRICING_TABLE["default"];
         return total + itemPrice;
     }, 0);
 
@@ -84,6 +92,13 @@ export default async function handler(req, res) {
                 { name: "Base Model", value: baseProductId || "Standard Gold Chain" },
                 { name: "Gem Count", value: gemCount.toString() },
                 { name: "Design ID", value: `CFG-${Date.now()}` }, // Unique ID for reference
+                ...(isBracelet ? [
+                  { name: 'Design name', value: req.body.designName || 'Untitled bracelet' },
+                  { name: 'Metal', value: req.body.metal },
+                  { name: 'Chain style', value: req.body.chainStyle },
+                  { name: 'Bracelet length', value: `${req.body.braceletSize} cm` },
+                  { name: 'Charm arrangement', value: JSON.stringify(configuration.map(({ id, angle, rotation, scale, mirrored }) => ({ id, angle, ...(rotation !== undefined ? { rotation } : {}), ...(scale !== undefined ? { scale } : {}), ...(mirrored !== undefined ? { mirrored } : {}) }))) },
+                ] : []),
                 // You can verify this ID later to rebuild the visual in the admin panel if needed
             ]
           }

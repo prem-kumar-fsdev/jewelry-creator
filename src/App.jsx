@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import JewelryConfigurator from "./components/JewelryConfigurator";
+import BraceletStudio from "./components/BraceletStudio";
 import { JEWELRY_VARIANTS } from "./data/jewelryData";
 
 const TABS = [
@@ -44,7 +45,7 @@ const TABS = [
 ];
 
 function App() {
-  const [activeTab, setActiveTab] = useState("earrings");
+  const [activeTab, setActiveTab] = useState("bracelet");
 
   return (
     <div className="flex flex-col min-h-screen bg-[#f7f5f2] font-sans antialiased text-[#222222]">
@@ -94,7 +95,9 @@ function App() {
               className={`w-full h-full ${isCurrent ? "block" : "hidden"}`}
               style={{ display: isCurrent ? "block" : "none" }}
             >
-              <JewelryConfigurator variantConfig={JEWELRY_VARIANTS[tab.key]} isActive={isCurrent} />
+              {tab.key === 'bracelet'
+                ? <BraceletStudio isActive={isCurrent} />
+                : <JewelryConfigurator variantConfig={JEWELRY_VARIANTS[tab.key]} isActive={isCurrent} />}
             </div>
           );
         })}
