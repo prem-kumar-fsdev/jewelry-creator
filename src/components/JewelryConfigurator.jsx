@@ -1,29 +1,57 @@
 import React, { useState, useRef } from "react";
 import CanvasPreview from "./CanvasPreview";
 import Controls from "./Controls";
-import { BASE_CONFIG } from "../data/jewelryData";
+import { COMPONENTS, EARRING_STYLES } from "../data/jewelryData";
 
-const JewelryConfigurator = () => {
-    // Configuration is now an array of objects: { id: string, angle: number, uuid: string }
+const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
+    const isEarring = variantConfig.type === 'earrings';
+
     const [configuration, setConfiguration] = useState([]);
     const [activeItemUuid, setActiveItemUuid] = useState(null);
+    const [selectedMetal, setSelectedMetal] = useState("gold");
+    const [selectedChainStyle, setSelectedChainStyle] = useState("cable");
+    const [selectedBackdrop, setSelectedBackdrop] = useState("studio-white");
+    const [selectedEarringStyle, setSelectedEarringStyle] = useState("baroque-larimar");
+    const [selectedEarringHardware, setSelectedEarringHardware] = useState("hook"); // 'hook', 'post', 'wire'
+    const [earringChain, setEarringChain] = useState([]);
+    const [mobileView, setMobileView] = useState("split"); // 'split' | 'studio' | 'controls'
+
     const canvasRef = useRef(null);
 
-    // Initial load - maybe add some default beads? 
-    // Let's start empty for "custom" feel, or maybe 4 balanced ones.
-
-    // Helper to generate unique ID
     const generateUuid = () => Math.random().toString(36).substr(2, 9);
 
+    const handleAttachEarringStone = (stoneId) => {
+        if (earringChain.length >= 6) {
+            alert("Maximum cascade tiers reached (6 tiers).");
+            return;
+        }
+        setEarringChain(prev => [...prev, stoneId]);
+    };
+
+    const handleRemoveLastEarringStone = () => {
+        setEarringChain(prev => prev.slice(0, -1));
+    };
+
+    const handleRemoveEarringStoneAtIndex = (index) => {
+        setEarringChain(prev => prev.filter((_, idx) => idx !== index));
+    };
+
+    const handleResetEarringChain = () => {
+        setEarringChain([]);
+    };
+
     const handleCanvasClick = (clickData) => {
-        // clickData contains { type: 'add'|'select', ... }
         if (clickData.type === 'add') {
+            if (configuration.length >= (variantConfig.maxComponents || 16)) {
+                return;
+            }
             const newItem = {
                 uuid: generateUuid(),
                 id: null, // null = base bead
                 angle: clickData.angle,
-                rotation: 0, // stone self-rotation in radians
-                mirrored: false, // horizontal flip
+                side: clickData.side || 'left',
+                rotation: 0,
+                mirrored: false,
             };
             setConfiguration(prev => [...prev, newItem]);
             setActiveItemUuid(newItem.uuid);
@@ -75,7 +103,8 @@ const JewelryConfigurator = () => {
         if (canvasRef.current) {
             const url = canvasRef.current.toDataURL("image/png");
             const link = document.createElement("a");
-            link.download = "my-custom-jewelry.png";
+            const styleTag = isEarring ? `-${selectedEarringStyle}` : '';
+            link.download = `my-custom-${variantConfig.type}${styleTag}-${selectedMetal}.png`;
             link.href = url;
             link.click();
         }
@@ -84,22 +113,34 @@ const JewelryConfigurator = () => {
     const [isProcessing, setIsProcessing] = useState(false);
 
     const handleAddToCart = async () => {
-        if (!canvasRef.current || configuration.length === 0) return;
+        if (!canvasRef.current || (!isEarring && configuration.length === 0)) return;
 
         setIsProcessing(true);
         try {
             const imageData = canvasRef.current.toDataURL("image/png");
 
-            // Call the backend function
             const response = await fetch('/api/create-checkout', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    baseProductId: BASE_CONFIG.id,
-                    configuration: configuration,
-                    previewImage: imageData, // Send image if you want to store it or use it (backend currently ignores it but good to have)
+                    baseProductId: variantConfig.id,
+                    jewelryType: variantConfig.type,
+                    metal: selectedMetal,
+                    chainStyle: isEarring ? selectedEarringStyle : selectedChainStyle,
+                    earringStyle: selectedEarringStyle,
+                    earringHardware: isEarring ? selectedEarringHardware : undefined,
+                    configuration: isEarring
+                        ? [
+                            { id: selectedEarringStyle, name: EARRING_STYLES[selectedEarringStyle]?.name || "Custom Fine Drop Earrings" },
+                            ...earringChain.map(id => {
+                                const c = COMPONENTS.find(item => item.id === id);
+                                return { id, name: c ? `${c.name} (Cascade Tier)` : id };
+                            })
+                          ]
+                        : configuration,
+                    previewImage: imageData,
                 }),
             });
 
@@ -110,7 +151,6 @@ const JewelryConfigurator = () => {
             }
 
             if (data.invoice_url) {
-                // Redirect user to Shopify Checkout
                 window.location.href = data.invoice_url;
             } else {
                 alert("Error: No invoice URL returned from backend.");
@@ -124,26 +164,13 @@ const JewelryConfigurator = () => {
         }
     };
 
-    const [calibration, setCalibration] = useState({
-        radiusX: BASE_CONFIG.layout.radiusX,
-        radiusY: BASE_CONFIG.layout.radiusY,
-        rotation: 0, // degrees
-    });
-
-    const handleCalibrationChange = (e) => {
-        const { name, value } = e.target;
-        setCalibration(prev => ({
-            ...prev,
-            [name]: parseFloat(value)
-        }));
-    };
-
     const handleDrop = (dropData) => {
-        // dropData = { id, angle }
+        if (configuration.length >= (variantConfig.maxComponents || 16)) return;
         const newItem = {
             uuid: generateUuid(),
             id: dropData.id,
             angle: dropData.angle,
+            side: dropData.side || 'left',
             rotation: 0,
             mirrored: false,
         };
@@ -152,26 +179,47 @@ const JewelryConfigurator = () => {
     };
 
     return (
-        <div className="configurator-layout">
-            <div className="preview-area">
-                <div className="canvas-container">
-                    <CanvasPreview
-                        configuration={configuration}
-                        onCanvasReady={handleCanvasReady}
-                        calibration={calibration}
-                        onCanvasClick={handleCanvasClick}
-                        onDrop={handleDrop}
-                        onItemMove={handleItemMove}
-                        onItemRotate={handleItemRotate}
-                        onItemMirror={handleItemMirror}
-                    />
-
-                </div>
+        <div className={`sj-legacy-layout ${mobileView === 'studio' ? 'is-expanded' : ''}`}>
+            <div className="sj-legacy-gallery"><button className="sj-present-button sj-legacy-expand" onClick={() => setMobileView(mobileView === 'studio' ? 'split' : 'studio')}>{mobileView === 'studio' ? 'Close expanded view' : '⛶ Expand view'}</button>
+                <CanvasPreview
+                    isActive={isActive}
+                    variantConfig={variantConfig}
+                    configuration={configuration}
+                    selectedMetal={selectedMetal}
+                    selectedChainStyle={selectedChainStyle}
+                    selectedBackdrop={selectedBackdrop}
+                    selectedEarringStyle={selectedEarringStyle}
+                    selectedEarringHardware={selectedEarringHardware}
+                    earringChain={earringChain}
+                    onAttachEarringStone={handleAttachEarringStone}
+                    onCanvasReady={handleCanvasReady}
+                    onCanvasClick={handleCanvasClick}
+                    onDrop={handleDrop}
+                    onItemMove={handleItemMove}
+                    onItemRotate={handleItemRotate}
+                    onItemMirror={handleItemMirror}
+                />
             </div>
-            <div className="sidebar">
+            <div className="sj-legacy-sidebar">
                 <Controls
+                    variantConfig={variantConfig}
                     configuration={configuration}
                     activeItemUuid={activeItemUuid}
+                    selectedMetal={selectedMetal}
+                    onSelectMetal={setSelectedMetal}
+                    selectedChainStyle={selectedChainStyle}
+                    onSelectChainStyle={setSelectedChainStyle}
+                    selectedBackdrop={selectedBackdrop}
+                    onSelectBackdrop={setSelectedBackdrop}
+                    selectedEarringStyle={selectedEarringStyle}
+                    onSelectEarringStyle={setSelectedEarringStyle}
+                    selectedEarringHardware={selectedEarringHardware}
+                    onSelectEarringHardware={setSelectedEarringHardware}
+                    earringChain={earringChain}
+                    onAttachEarringStone={handleAttachEarringStone}
+                    onRemoveLastEarringStone={handleRemoveLastEarringStone}
+                    onRemoveEarringStoneAtIndex={handleRemoveEarringStoneAtIndex}
+                    onResetEarringChain={handleResetEarringChain}
                     onSelectStone={handleSelectStone}
                     onRemove={handleRemove}
                     onClear={handleClear}
