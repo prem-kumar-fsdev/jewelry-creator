@@ -37,6 +37,7 @@ export const BRACELET_CHAINS = [
 ];
 
 export const BRACELET_SCENES = [
+  { id: 'white', name: 'Studio white', color: '#ffffff', light: '#ffffff', dark: '#ffffff', ink: '#111111' },
   { id: 'sage', name: 'Sage atelier', color: '#dce2d7', light: '#edf0e8', dark: '#c9d1c3', ink: '#435245' },
   { id: 'ivory', name: 'Warm ivory', color: '#ece5d9', light: '#f8f4eb', dark: '#dbd0bd', ink: '#685c4b' },
   { id: 'midnight', name: 'Midnight', color: '#252e2c', light: '#3e4943', dark: '#17211e', ink: '#dddace' },
@@ -52,7 +53,7 @@ export const BRACELET_PRESETS = [
 export const MAX_CHARMS = 12;
 export const stoneById = (id) => BRACELET_STONES.find(stone => stone.id === id) || BRACELET_STONES[0];
 export const priceOf = (design) => 5000 + design.items.reduce((sum, item) => sum + stoneById(item.id).price, 0);
-export const formatPrice = (value) => `PKR ${value.toLocaleString('en-PK')}`;
+export const formatPrice = (value) => `Rs. ${value.toLocaleString('en-PK')}`;
 
 export function fromPreset(index = 0) {
   const preset = BRACELET_PRESETS[index];

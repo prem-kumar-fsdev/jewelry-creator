@@ -1,0 +1,183 @@
+/* Shaista storefront theme. Product layout and typography follow shaistajewelry.com. */
+:root { --font-sans: 'Jost', sans-serif; --bg-color: #fff; --text-primary: #000; --primary-color: #000; --primary-hover: #333; --border-color: #e8e8e8; --accent-gold: #d69bb3; --accent-gold-light: #fcf2f6; --surface-hover: #fcf7f9; }
+.shaista-app { --sj-pink: #edb2c9; --studio-ink: #000; --studio-muted: #666; background: #fff; color: #000; min-height: 100vh; font: 14px/1.6 'Jost', sans-serif; }
+.shaista-app button, .shaista-app input, .shaista-app select { font-family: inherit; }
+.shaista-app a { color: inherit; text-decoration: none; }
+.shaista-app button { cursor: pointer; }
+.shaista-app :focus-visible { outline: 2px solid #b76b8b; outline-offset: 4px; }
+/* Only the product editor is embedded; the host storefront owns its chrome. */
+.sj-product-editor { padding-top: 24px; }
+.sj-editor-category { display: flex; align-items: center; justify-content: flex-end; gap: 12px; max-width: 1440px; margin: 0 auto 24px; padding: 0 30px; }
+.sj-editor-category label { font-size: 13px; color: #777; }
+.sj-editor-category select { min-width: 155px; height: 38px; padding: 0 32px 0 12px; border: 1px solid #e8e8e8; border-radius: 2px; background: #fff; color: #000; font-size: 14px; }
+.shaista-app .bracelet-studio { background: #fff; color: #000; padding: 0 30px 60px; font-family: 'Jost', sans-serif; --studio-ink: #000; --studio-muted: #666; --studio-line: #e8e8e8; --studio-paper: #fff; }
+.shaista-app .studio-workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 30px; max-width: 1380px; align-items: start; }
+.shaista-app .studio-main { position: sticky; top: 20px; }
+.shaista-app .product-stage { width: 100%; height: auto; min-height: 0; max-height: none; aspect-ratio: 1; border-radius: 0; background: #fff; color: #000; }
+.shaista-app .product-stage.scene-midnight { color: #fff; }
+.shaista-app .stage-top { top: 15px; left: 15px; right: 15px; gap: 12px; }
+.shaista-app .sj-present-button { display: inline-flex; align-items: center; gap: 7px; background: #ffffffed; color: #111; border: 1px solid #eee; border-radius: 2px; padding: 8px 10px; font: 12px 'Jost', sans-serif; pointer-events: auto; }
+.shaista-app .view-switch { background: #ffffffed; border-color: #eee; border-radius: 2px; color: #111; }
+.shaista-app .view-switch button { font-size: 11px; padding: 5px 8px; }
+.shaista-app .view-switch button[aria-pressed='true'] { background: #faecf2; color: #000; box-shadow: none; }
+.shaista-app .stage-tools { top: auto; bottom: 15px; left: 15px; flex-direction: row; }
+.shaista-app .tool-group { background: #ffffffed; border-color: #eee; color: #000; }
+.shaista-app .tool-group button:hover:not(:disabled) { background: #faecf2; }
+.shaista-app .scene-quick { right: 15px; bottom: 15px; border-color: #eee; background: #ffffffed; color: #000; }
+.shaista-app .stage-caption { display: none; }
+.shaista-app .stage-footnote { color: #777; padding: 16px 0 22px; font-size: 11px; gap: 15px; }
+.shaista-app .stage-footnote button { color: #111; font-size: 12px; white-space: nowrap; }
+.shaista-app .live-dot { background: #d69bb3; flex-shrink: 0; }
+.shaista-app .preset-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; padding-top: 22px; }
+.shaista-app .preset-intro { grid-column: 1/-1; display: flex; align-items: baseline; gap: 18px; margin-bottom: 5px; }
+.shaista-app .preset-intro h3 { font: 20px 'Playfair Display', Georgia, serif; margin: 0; }
+.shaista-app .preset-intro .studio-eyebrow { color: #bf829b; font-size: 9px; }
+.shaista-app .preset-card { background: #fff; border: 1px solid #e8e8e8; padding: 13px 10px; border-radius: 2px; }
+.shaista-app .preset-card:hover { background: #fcf4f7; border-color: #edb2c9; }
+.shaista-app .preset-card strong { font-size: 12px; font-weight: 400; }
+.shaista-app .preset-card small { display: none; }
+.shaista-app .preset-card > svg { display: none; }
+.shaista-app .design-panel { border: 0; background: #fff; border-radius: 0; height: auto; min-height: 0; color: #000; display: block; }
+.sj-product-heading h1, .shaista-app .product-title { font: 400 29px/1.3 'Playfair Display', Georgia, serif; letter-spacing: 0; margin: 0 0 14px; color: #000; }
+.sj-product-price, .shaista-app .product-price { font: 400 28px/1.4 'Jost', sans-serif; color: #000; letter-spacing: 0; margin: 0 0 23px; }
+.sj-product-heading > p { font-size: 14px; border-top: 1px solid #eee; padding-top: 23px; margin: 0 0 26px; max-width: none; }
+.sj-size-field label { display: block; font-size: 14px; margin-bottom: 10px; }
+.sj-size-field label span { color: #777; }
+.sj-size-field select { display: block; width: 100%; height: 42px; padding: 0 14px; border: 1px solid #e8e8e8; border-radius: 2px; background: #fff; color: #666; font-size: 14px; }
+.sj-size-field a { display: inline-block; text-decoration: underline; text-underline-offset: 3px; margin-top: 9px; font-size: 13px; }
+.sj-purchase { display: grid; grid-template-columns: 1fr; gap: 10px; margin: 25px 0 22px; }
+.shaista-app .studio-button, .shaista-app .primary-btn, .shaista-app .secondary-btn { min-height: 48px; font-size: 14px !important; font-weight: 400 !important; border-radius: 3px; box-shadow: none; letter-spacing: 0; text-transform: none; justify-content: center; transition: background .2s; }
+.shaista-app .studio-button:hover { transform: none; }
+.shaista-app .studio-button.primary, .shaista-app .primary-btn { background: #000; color: #fff; border-color: #000; }
+.shaista-app .studio-button.primary:hover, .shaista-app .primary-btn:hover { background: #333; border-color: #333; }
+.shaista-app .studio-button.secondary, .shaista-app .secondary-btn { background: #fff; color: #000; border: 1px solid #000; }
+.shaista-app .studio-button.secondary:hover, .shaista-app .secondary-btn:hover { background: #fcf2f6; }
+.sj-purchase p { font-size: 12px; color: #777; text-align: center; margin: 2px 0 0; }
+.sj-benefits { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid #eee; margin: 0 0 28px; }
+.sj-benefits > div { padding: 17px 12px; text-align: center; }
+.sj-benefits > div:nth-child(odd) { border-right: 1px solid #eee; }
+.sj-benefits > div:nth-child(-n+2) { border-bottom: 1px solid #eee; }
+.sj-benefits span { color: #bf829b; font-size: 9px; letter-spacing: 1.4px; }
+.sj-benefits p { font: italic 16px/1.5 'Playfair Display', Georgia, serif; margin: 5px 0 0; }
+.shaista-app .panel-content { padding: 0; overflow: visible; }
+.sj-accordion { border-bottom: 1px solid #ddd; }
+.sj-accordion:first-child { border-top: 1px solid #ddd; }
+.shaista-app .sj-accordion-trigger { display: flex; justify-content: space-between; align-items: center; gap: 20px; min-height: 50px; width: 100%; text-align: left; padding: 12px 0; background: none; border: 0; color: #000; font-size: 14px; }
+.sj-accordion-trigger > span:last-child { font-size: 21px; font-weight: 300; padding-right: 3px; }
+.sj-accordion-body { padding: 15px 0 26px; }
+.shaista-app [hidden] { display: none !important; }
+.shaista-app .section-label h3 { font-size: 13px; font-weight: 400; color: #111; }
+.shaista-app .section-label h3 > span { display: none; }
+.shaista-app .section-label > span, .shaista-app .section-label > button { font-size: 12px; color: #777; }
+.shaista-app .section-description { color: #777; font-size: 12px; line-height: 1.7; }
+.shaista-app .metal-options button, .shaista-app .chain-options > button, .shaista-app .quick-charms button, .shaista-app .stone-library > button, .shaista-app .size-options button, .shaista-app .backdrop-options button, .shaista-app .collection-switch button, .shaista-app .charm-sequence button { background: #fff; border-color: #e6e6e6; border-radius: 2px; color: #111; }
+.shaista-app .metal-options button[aria-pressed='true'], .shaista-app .chain-options > button[aria-pressed='true'], .shaista-app .size-options button[aria-pressed='true'], .shaista-app .backdrop-options button[aria-pressed='true'], .shaista-app .collection-switch button[aria-pressed='true'], .shaista-app .charm-sequence button[aria-pressed='true'] { background: #fdf3f7; border-color: #dca1ba; color: #000; }
+.shaista-app .metal-options button > span:last-child, .shaista-app .chain-options strong, .shaista-app .quick-charms button > span:not(.stone-swatch), .shaista-app .backdrop-options button, .shaista-app .collection-switch button { font-size: 12px; }
+.shaista-app .chain-options small, .shaista-app .stone-library small, .shaista-app .stone-price { color: #777; font-size: 11px; }
+.shaista-app .radio-mark { border-color: #ddd; }
+.shaista-app [aria-pressed='true'] .radio-mark { border-color: #dca1ba; background: #edb2c9; box-shadow: inset 0 0 0 3px white; }
+.shaista-app .photo-collection-link, .shaista-app .photo-collection-note button { color: #111; font-size: 12px !important; }
+.shaista-app .studio-note { display: none; }
+.shaista-app .photo-collection-note { background: #fdf5f8; border-color: #edb2c9; padding: 16px; }
+.shaista-app .photo-collection-note p { font-family: 'Playfair Display', Georgia, serif; }
+.shaista-app .photo-collection-note p span { font: 12px/1.6 'Jost', sans-serif; color: #777; }
+.shaista-app .stone-library { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.shaista-app .stone-library > button { padding: 14px 10px; }
+.shaista-app .stone-library > button:hover { border-color: #dca1ba; }
+.shaista-app .stone-library strong { font-size: 12px; font-weight: 400; }
+.shaista-app .library-stone > svg { color: #111; }
+.shaista-app .selected-charm { background: #fcf5f8; border-color: #edc6d6; padding: 20px; }
+.shaista-app .selected-charm label, .shaista-app .scale-note, .shaista-app .remove-charm { color: #666; font-size: 12px !important; }
+.shaista-app .selected-charm input[type='range'] { accent-color: #c98aa5; }
+.shaista-app .charm-actions button { background: #fff; border-color: #ddd; font-size: 12px; }
+.shaista-app .charm-actions button[aria-pressed='true'] { background: #f5dce7; border-color: #dca1ba; }
+.shaista-app .panel-content input:not([type]), .shaista-app .panel-content input[type='text'] { background: #fff; color: #000; border-color: #ddd; border-radius: 2px; font: 14px 'Jost', sans-serif; padding: 12px; }
+.shaista-app .review-dialog { background: #fff; color: #000; border-color: #eee; border-radius: 3px; }
+.shaista-app .review-dialog::backdrop { background: #0006; backdrop-filter: blur(2px); }
+.shaista-app .review-dialog h2 { font-family: 'Playfair Display', Georgia, serif; }
+.shaista-app .review-dialog p, .shaista-app .review-dialog dt, .shaista-app .review-back { color: #777; }
+.shaista-app .review-dialog dl > div { border-color: #eee; font-size: 14px; }
+.shaista-app .studio-toast { background: #000; border-radius: 2px; color: #fff; }
+.shaista-app .is-presenting .studio-workspace { grid-template-columns: 1fr; max-width: 1000px; }
+.shaista-app .is-presenting .product-stage { min-height: 0; height: min(75vh, 850px); aspect-ratio: auto; }
+.shaista-app .is-presenting .stage-caption { display: block; }
+.shaista-app .is-presenting .stage-caption h2 { font-family: 'Playfair Display', Georgia, serif; }
+.shaista-app .presentation-footer { max-width: 1000px; }
+/* Earrings share the same storefront proportions and accordion treatment. */
+.sj-legacy-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 30px; max-width: 1440px; padding: 0 30px 60px; margin: auto; align-items: start; }
+.sj-legacy-gallery { position: sticky; top: 20px; aspect-ratio: 1; min-width: 0; background: #fff; overflow: hidden; }
+.sj-legacy-expand { position: absolute; top: 15px; left: 15px; z-index: 5; }
+.sj-legacy-sidebar { min-width: 0; }
+.shaista-app .controls-panel { padding: 0; background: #fff; }
+.shaista-app .product-header { padding: 0; margin-bottom: 25px; border: 0; }
+.shaista-app .variant-tag { color: #888; font: 11px 'Jost', sans-serif; letter-spacing: .5px; margin: 0 0 12px; background: none; padding: 0; }
+.shaista-app .price-breakdown { border-top: 1px solid #eee; padding-top: 18px; font-size: 13px; color: #777; }
+.shaista-app .actions { position: static; display: grid; grid-template-columns: 1fr; gap: 10px; padding: 0; margin: 0 0 25px; background: none; border: 0; box-shadow: none; }
+.shaista-app .actions .primary-btn { grid-row: 1; }
+.shaista-app .accordion-global-bar { padding: 12px 0; margin: 0; background: none; border: 0; }
+.shaista-app .global-bar-title { color: #777; font-size: 11px; letter-spacing: .6px; }
+.shaista-app .global-bar-actions button { color: #777; }
+.shaista-app .luxury-accordion-stack { gap: 0; }
+.shaista-app .luxury-accordion-item, .shaista-app .luxury-accordion-item:hover, .shaista-app .luxury-accordion-item.is-open { border: 0; border-bottom: 1px solid #ddd; border-radius: 0; background: #fff; box-shadow: none; }
+.shaista-app .luxury-accordion-item:first-child { border-top: 1px solid #ddd; }
+.shaista-app .luxury-accordion-trigger, .shaista-app .luxury-accordion-trigger:hover, .shaista-app .is-open .luxury-accordion-trigger { padding: 12px 0; min-height: 50px; background: #fff; border: 0; }
+.shaista-app .luxury-accordion-title { font: 400 14px 'Jost', sans-serif; letter-spacing: 0; text-transform: none; color: #000; margin: 0; }
+.shaista-app .luxury-accordion-sub, .shaista-app .accordion-step, .shaista-app .accordion-swatch-badge, .shaista-app .accordion-mini-badge, .shaista-app .accordion-icon-wrap { display: none; }
+.shaista-app .luxury-accordion-chevron { width: 20px; height: 25px; border: 0; background: none; box-shadow: none; color: #000; transform: none; }
+.shaista-app .luxury-accordion-chevron svg { display: none; }
+.shaista-app .luxury-accordion-chevron::after { content: '+'; font: 300 21px 'Jost', sans-serif; }
+.shaista-app .is-open .luxury-accordion-chevron::after { content: '−'; }
+.shaista-app .luxury-accordion-inner, .shaista-app .is-open .luxury-accordion-inner { padding: 0; }
+.shaista-app .is-open .luxury-accordion-inner { padding-bottom: 22px; padding-top: 12px; }
+.shaista-app .sj-legacy-layout.is-expanded { grid-template-columns: 1fr; max-width: 1060px; }
+.shaista-app .sj-legacy-layout.is-expanded .sj-legacy-sidebar { display: none; }
+.shaista-app .sj-legacy-layout.is-expanded .sj-legacy-gallery { height: 75vh; aspect-ratio: auto; }
+@media (max-width: 1050px) { .shaista-app .mini-bracelet { display: none; } .shaista-app .preset-card { justify-content: center; } .shaista-app .stone-library { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 767px) {
+  .sj-product-editor { padding-top: 16px; }
+  .sj-editor-category { padding: 0 20px; margin-bottom: 18px; }
+  .shaista-app .bracelet-studio { padding: 0 20px 30px; }
+  .shaista-app .studio-workspace, .sj-legacy-layout { grid-template-columns: 1fr; gap: 30px; }
+  .sj-legacy-layout { padding: 0 20px 30px; }
+  .shaista-app .studio-main, .sj-legacy-gallery { position: relative; top: auto; }
+  .shaista-app .product-stage { height: auto; min-height: 0; max-height: none; aspect-ratio: 1; }
+  .shaista-app .stage-top { top: 8px; left: 5px; right: 5px; gap: 5px; }
+  .shaista-app .sj-present-button { font-size: 10px; padding: 7px; }
+  .shaista-app .sj-present-button svg { width: 13px; }
+  .shaista-app .view-switch button { font-size: 10px; padding: 5px 7px; }
+  .shaista-app .stage-tools { bottom: 8px; left: 5px; gap: 5px; }
+  .shaista-app .scene-quick { bottom: 8px; right: 5px; gap: 7px; padding: 7px; }
+  .shaista-app .scene-quick button { width: 14px; height: 14px; }
+  .shaista-app .tool-group button { width: 25px; height: 27px; }
+  .shaista-app .tool-group .zoom-label { width: 31px; }
+  .shaista-app .stage-footnote { font-size: 10px; align-items: start; }
+  .shaista-app .stage-footnote button { font-size: 11px; }
+  .shaista-app .preset-strip { padding-top: 17px; }
+  .shaista-app .preset-intro { display: block; }
+  .shaista-app .preset-intro h3 { margin-top: 5px; }
+  .shaista-app .preset-card { padding: 10px 5px; min-height: 44px; }
+  .shaista-app .preset-card strong { font-size: 11px; }
+  .sj-product-heading h1, .shaista-app .product-title { font-size: 27px; }
+  .shaista-app .stone-library { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .shaista-app .stone-library strong { font-size: 11px; }
+  .shaista-app .stone-library small { font-size: 10px; }
+  .shaista-app .stone-library > button { padding: 10px 7px; }
+}
+.shaista-app .luxury-meta-pill, .shaista-app .luxury-count-pill { display: none; }
+.shaista-app .luxury-accordion-trigger:focus-visible { outline: 2px solid #b76b8b; outline-offset: -2px; }
+.shaista-app .is-open .luxury-accordion-chevron, .shaista-app .luxury-accordion-trigger:hover .luxury-accordion-chevron { background: none; border: 0; transform: none; color: #000; }
+.shaista-app .metal-btn, .shaista-app .hardware-card, .shaista-app .earring-style-card, .shaista-app .component-card-cascade, .shaista-app .backdrop-btn { background: #fff; border: 1px solid #e6e6e6; border-radius: 2px; box-shadow: none; color: #000; }
+.shaista-app .metal-btn.active, .shaista-app .hardware-card.active, .shaista-app .earring-style-card.active, .shaista-app .backdrop-btn.active { border-color: #dca1ba; background: #fdf3f7; box-shadow: none; }
+.shaista-app .metal-btn:hover, .shaista-app .hardware-card:hover, .shaista-app .earring-style-card:hover, .shaista-app .component-card-cascade:hover { border-color: #dca1ba; box-shadow: none; transform: none; }
+.shaista-app .hardware-card-title, .shaista-app .earring-style-title { font-size: 14px; font-weight: 400; color: #000; }
+.shaista-app .hardware-card-desc, .shaista-app .earring-style-desc { font-size: 12px; color: #777; }
+.shaista-app .metal-name, .shaista-app .hardware-active-indicator, .shaista-app .earring-style-price, .shaista-app .comp-price { color: #111; font-weight: 400; }
+.shaista-app .hardware-tag, .shaista-app .featured-badge, .shaista-app .sj-shape-tag { background: #f9e8ef; color: #a56782; border: 0; border-radius: 2px; padding: 3px 6px; font-size: 9px; white-space: nowrap; }
+.shaista-app .card-thumb-wrap { background: #fff; }
+.shaista-app .component-card-cascade .card-info { border-color: #eee; }
+.shaista-app .quick-attach-btn { background: #fff; border: 1px solid #ddd; color: #000; border-radius: 2px; box-shadow: none; }
+.shaista-app .quick-attach-btn:hover { background: #000; color: #fff; border-color: #000; }
+.shaista-app .category-tab { border-radius: 2px; background: #fff; border-color: #ddd; color: #777; font: 12px 'Jost', sans-serif; }
+.shaista-app .category-tab.active { background: #fdf3f7; border-color: #dca1ba; color: #000; box-shadow: none; }
+.shaista-app .minimal-atelier-hint, .shaista-app .chain-hierarchy-section, .shaista-app .hierarchy-node, .shaista-app .info-box { background: #fcf7f9; border-color: #eee; color: #666; border-radius: 2px; }
+.shaista-app .luxury-accordion-collapse, .shaista-app .luxury-accordion-inner { transition: none; }

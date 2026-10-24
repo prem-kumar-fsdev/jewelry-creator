@@ -20,14 +20,14 @@ export default function BraceletStage({ ref, design, scene, zoom, view, selected
       const model = (variant === 'necklace' ? createNecklacePhysics : createBraceletPhysics)(design.size, view === 'drape');
       drawBracelet(ctx, 1800, 1440, model, design, { scene, view });
       const palette = BRACELET_SCENES.find(s => s.id === scene);
-      ctx.fillStyle = '#f8f6f0'; ctx.fillRect(0, 1440, 1800, 160);
-      ctx.fillStyle = '#2d3c33'; ctx.font = '40px Georgia'; ctx.fillText(design.name || `Untitled ${variant}`, 80, 1505, 1380);
+      ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 1440, 1800, 160);
+      ctx.fillStyle = '#111111'; ctx.font = '40px Georgia'; ctx.fillText(design.name || `Untitled ${variant}`, 80, 1505, 1380);
       ctx.font = '19px sans-serif'; ctx.fillStyle = '#77796e';
       ctx.fillText(`${METALS[design.metal].shortName}  /  ${design.size} cm  /  ${design.items.length} charms  /  ${palette.name}`, 80, 1550);
-      ctx.textAlign = 'right'; ctx.font = '27px Georgia'; ctx.fillStyle = '#2d3c33'; ctx.fillText('A U R A', 1720, 1510);
+      ctx.textAlign = 'right'; ctx.font = '27px Georgia'; ctx.fillStyle = '#111111'; ctx.fillText('SHAISTA', 1720, 1510);
       ctx.font = '13px sans-serif'; ctx.fillText('A PIECE OF YOUR OWN', 1720, 1544);
       return {
-        filename: `${(design.name || variant).replace(/[^a-z0-9-]/gi, '-').toLowerCase()}-aura.png`,
+        filename: `${(design.name || variant).replace(/[^a-z0-9-]/gi, '-').toLowerCase()}-shaista.png`,
         url: canvas.toDataURL('image/png'),
       };
     },
@@ -82,7 +82,7 @@ export default function BraceletStage({ ref, design, scene, zoom, view, selected
         stepBracelet(state.model, elapsed, state.drag, motion.matches);
         const dpr = Math.min(window.devicePixelRatio || 1, 2);
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        state.layout = drawBracelet(ctx, w, h, state.model, state.design, { scene, zoom, selected: presenting ? null : selected, guide: !presenting, view });
+        state.layout = drawBracelet(ctx, w, h, state.model, state.design, { scene, zoom, selected: presenting ? null : selected, guide: !presenting && scene !== 'white', view });
         idleFrames++;
       }
       frame = requestAnimationFrame(render);
@@ -93,7 +93,7 @@ export default function BraceletStage({ ref, design, scene, zoom, view, selected
       canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
       if (w > 0 && h > 0) {
         ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-        state.layout = drawBracelet(ctx, w, h, state.model, state.design, { scene, zoom, selected: presenting ? null : selected, guide: !presenting, view });
+        state.layout = drawBracelet(ctx, w, h, state.model, state.design, { scene, zoom, selected: presenting ? null : selected, guide: !presenting && scene !== 'white', view });
       }
       state.dirty = true;
     });

@@ -10,7 +10,7 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
     const [activeItemUuid, setActiveItemUuid] = useState(null);
     const [selectedMetal, setSelectedMetal] = useState("gold");
     const [selectedChainStyle, setSelectedChainStyle] = useState("cable");
-    const [selectedBackdrop, setSelectedBackdrop] = useState("velvet-emerald");
+    const [selectedBackdrop, setSelectedBackdrop] = useState("studio-white");
     const [selectedEarringStyle, setSelectedEarringStyle] = useState("baroque-larimar");
     const [selectedEarringHardware, setSelectedEarringHardware] = useState("hook"); // 'hook', 'post', 'wire'
     const [earringChain, setEarringChain] = useState([]);
@@ -179,46 +179,8 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
     };
 
     return (
-        <div className="flex flex-col lg:flex-row h-[calc(100vh-88px)] sm:h-[calc(100vh-72px)] overflow-hidden bg-[#f7f5f2]">
-            {/* Viewport Canvas */}
-            <div
-                className={`relative overflow-hidden bg-[#0a0a0a] p-0 transition-all duration-300 ${
-                    mobileView === 'studio'
-                        ? 'h-full w-full shrink-0 z-30'
-                        : mobileView === 'controls'
-                        ? 'hidden lg:flex lg:flex-1 lg:h-full shrink-0 lg:shrink'
-                        : 'h-[44vh] sm:h-[50vh] lg:h-full lg:flex-1 w-full shrink-0 lg:shrink'
-                }`}
-            >
-                {/* Animated studio background overlay */}
-                <div className="absolute inset-0 pointer-events-none z-[2] bg-[radial-gradient(ellipse_80%_60%_at_30%_40%,rgba(201,169,98,0.05)_0%,transparent_70%),radial-gradient(ellipse_60%_80%_at_70%_60%,rgba(201,169,98,0.03)_0%,transparent_65%)]" />
-                <div className="absolute inset-0 pointer-events-none z-[2] shadow-[inset_0_0_80px_rgba(0,0,0,0.5)]" />
-
-                {/* Studio Header & View Controls */}
-                <div className="absolute top-3 left-3 right-3 sm:top-4 sm:left-6 sm:right-6 z-20 flex items-center justify-between pointer-events-none gap-2">
-                    <div className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/10 text-white/60 text-[10px] sm:text-[11px] font-medium tracking-[1.5px] uppercase shrink-0">
-                        <span className="text-[#c9a962]">◇</span>
-                        <span className="hidden xs:inline">ATELIER STUDIO</span>
-                        <span className="xs:hidden">ATELIER</span>
-                    </div>
-
-                    <div className="flex items-center gap-1.5 pointer-events-auto ml-auto">
-                        {/* Mobile Expand Studio Toggle Button */}
-                        <div className="lg:hidden flex items-center p-0.5 sm:p-1 rounded-full bg-black/60 backdrop-blur-md border border-white/15 shadow-lg">
-                            <button
-                                type="button"
-                                className="flex items-center gap-1 px-2.5 sm:px-3 py-1 sm:py-1.5 rounded-full text-[11px] sm:text-xs font-medium text-white/90 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
-                                onClick={() => setMobileView(prev => prev === 'studio' ? 'split' : 'studio')}
-                                title={mobileView === 'studio' ? "Restore split controls view" : "Expand studio view"}
-                            >
-                                <span>{mobileView === 'studio' ? '⇲' : '⛶'}</span>
-                                <span>{mobileView === 'studio' ? 'Split' : 'Expand'}</span>
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Viewport Canvas */}
+        <div className={`sj-legacy-layout ${mobileView === 'studio' ? 'is-expanded' : ''}`}>
+            <div className="sj-legacy-gallery"><button className="sj-present-button sj-legacy-expand" onClick={() => setMobileView(mobileView === 'studio' ? 'split' : 'studio')}>{mobileView === 'studio' ? 'Close expanded view' : '⛶ Expand view'}</button>
                 <CanvasPreview
                     isActive={isActive}
                     variantConfig={variantConfig}
@@ -237,58 +199,8 @@ const JewelryConfigurator = ({ variantConfig, isActive = true }) => {
                     onItemRotate={handleItemRotate}
                     onItemMirror={handleItemMirror}
                 />
-
-                {/* Floating Switcher on Mobile when in Full Studio View */}
-                {mobileView === 'studio' && (
-                    <div className="lg:hidden absolute bottom-5 left-1/2 -translate-x-1/2 z-30 pointer-events-auto">
-                        <button
-                            type="button"
-                            className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-black/85 backdrop-blur-md border border-[#c9a962]/50 text-white shadow-2xl text-xs font-medium cursor-pointer hover:bg-black"
-                            onClick={() => setMobileView('split')}
-                        >
-                            <span>⚙️</span>
-                            <span>Atelier Controls & Options</span>
-                            <span className="text-[#c9a962]">→</span>
-                        </button>
-                    </div>
-                )}
-
-                {/* Floating Summary Bar at Bottom (hidden on very small portrait mobile to keep view clean) */}
-                {mobileView !== 'studio' && (
-                    <div className="hidden sm:flex absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex-wrap items-center justify-center gap-1.5 max-w-[90%] pointer-events-none">
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 text-xs font-medium shadow-lg">
-                            ✨ {selectedMetal === 'gold' ? '18k Yellow Gold' : selectedMetal === 'roseGold' ? '18k Rose Gold' : 'Platinum White Gold'}
-                        </span>
-                        {isEarring && (
-                            <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 text-xs font-medium shadow-lg">
-                                {selectedEarringHardware === 'post' ? '🧷 Ear Post' : selectedEarringHardware === 'wire' ? '➰ Kidney Wire' : '🪝 French Hook'}
-                            </span>
-                        )}
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 text-xs font-medium shadow-lg">
-                            {isEarring
-                                ? `💎 ${EARRING_STYLES[selectedEarringStyle]?.name || 'Articulated Drop'}`
-                                : `⛓️ ${selectedChainStyle === 'cable' ? 'Luxury Cable' : selectedChainStyle === 'cuban' ? 'Diamond Cuban' : selectedChainStyle === 'rope' ? 'Twisted Rope' : 'Elongated Clip'}`
-                            }
-                        </span>
-                        <span className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-md border border-white/15 text-white/90 text-xs font-medium shadow-lg">
-                            {isEarring
-                                ? `✨ ${earringChain.length} ${earringChain.length === 1 ? 'Tier Chained' : 'Tiers Chained'}`
-                                : `💎 ${configuration.length} ${configuration.length === 1 ? 'Stone Placed' : 'Stones Placed'}`
-                            }
-                        </span>
-                    </div>
-                )}
             </div>
-
-            <div
-                className={`w-full lg:w-[560px] xl:w-[580px] bg-white border-t lg:border-t-0 lg:border-l border-[#e6e3dc] overflow-y-auto transition-all duration-300 ${
-                    mobileView === 'studio'
-                        ? 'hidden lg:block lg:h-full lg:flex-none'
-                        : mobileView === 'controls'
-                        ? 'h-full w-full'
-                        : 'flex-1 min-h-0 lg:h-full lg:flex-none'
-                }`}
-            >
+            <div className="sj-legacy-sidebar">
                 <Controls
                     variantConfig={variantConfig}
                     configuration={configuration}

@@ -66,9 +66,9 @@ const Controls = ({
 }) => {
     const [openSections, setOpenSections] = useState({
         metal: true,
-        hardware: true,
+        hardware: false,
         silhouette: false,
-        stones: true,
+        stones: false,
         backdrop: false,
         craftsmanship: false
     });
@@ -145,21 +145,38 @@ const Controls = ({
                 <h1 className="product-title">
                     {isEarring ? currentEarringStyle.name : (variantConfig?.name || "Custom Jewelry")}
                 </h1>
-                <div className="product-price">PKR {totalPrice.toLocaleString()}</div>
+                <div className="product-price">Rs. {totalPrice.toLocaleString()}</div>
                 <div className="price-breakdown">
-                    <span>Base: PKR {basePrice.toLocaleString()}</span>
+                    <span>Base: Rs. {basePrice.toLocaleString()}</span>
                     {isEarring && earringChainPrice > 0 && (
-                        <span>+ Chained Pearls/Stones (Pair): PKR {earringChainPrice.toLocaleString()}</span>
+                        <span>+ Chained Pearls/Stones (Pair): Rs. {earringChainPrice.toLocaleString()}</span>
                     )}
                     {!isEarring && componentsPrice > 0 && (
-                        <span>+ Stones: PKR {componentsPrice.toLocaleString()}</span>
+                        <span>+ Stones: Rs. {componentsPrice.toLocaleString()}</span>
                     )}
                 </div>
             </div>
 
+            {/* Action Buttons */}
+            <div className="actions">
+                <button
+                    className="secondary-btn"
+                    onClick={onExport}
+                    disabled={!canAction}
+                >
+                    Save Design
+                </button>
+                <button
+                    className="primary-btn"
+                    onClick={onAddToCart}
+                    disabled={!canAction || isProcessing}
+                >
+                    {isProcessing ? "Processing..." : "Add To Bag"}
+                </button>
+            </div>
             {/* Accordions Global Action Bar */}
             <div className="accordion-global-bar">
-                <span className="global-bar-title">ATELIER CONFIGURATION</span>
+                <span className="global-bar-title">Customize your earrings</span>
                 <div className="global-bar-actions">
                     <button type="button" className="text-btn-subtle" onClick={expandAll}>
                         Expand All
@@ -202,7 +219,7 @@ const Controls = ({
                         </div>
                     </button>
 
-                    <div className="luxury-accordion-collapse">
+                    <div className="luxury-accordion-collapse" hidden={!openSections.metal}>
                         <div className="luxury-accordion-inner">
                             <div className="metal-selector-grid">
                                 {Object.values(METALS).map((metal) => {
@@ -256,7 +273,7 @@ const Controls = ({
                             </div>
                         </button>
 
-                        <div className="luxury-accordion-collapse">
+                        <div className="luxury-accordion-collapse" hidden={!openSections.hardware}>
                             <div className="luxury-accordion-inner">
                                 <div className="hardware-selector-grid">
                                     {Object.values(EARRING_HARDWARE).map((hw) => {
@@ -299,7 +316,7 @@ const Controls = ({
                         <div className="accordion-title-group">
                             <div className="accordion-title-text">
                                 <h3 className="luxury-accordion-title">
-                                    {isEarring ? "Atelier Silhouette" : "Chain Weave Style"}
+                                    {isEarring ? "Earring style" : "Chain Weave Style"}
                                 </h3>
                                 <span className="luxury-accordion-sub">
                                     {isEarring ? currentEarringStyle.name : (CHAIN_STYLES[selectedChainStyle]?.name || "Luxury Cable")}
@@ -318,7 +335,7 @@ const Controls = ({
                         </div>
                     </button>
 
-                    <div className="luxury-accordion-collapse">
+                    <div className="luxury-accordion-collapse" hidden={!openSections.silhouette}>
                         <div className="luxury-accordion-inner">
                             {isEarring ? (
                                 <div className="earring-styles-grid">
@@ -339,7 +356,7 @@ const Controls = ({
                                                     )}
                                                 </div>
                                                 <p className="earring-style-desc">{style.description}</p>
-                                                <div className="earring-style-price">PKR {price.toLocaleString()}</div>
+                                                <div className="earring-style-price">Rs. {price.toLocaleString()}</div>
                                             </button>
                                         );
                                     })}
@@ -402,7 +419,7 @@ const Controls = ({
                         </div>
                     </button>
 
-                    <div className="luxury-accordion-collapse">
+                    <div className="luxury-accordion-collapse" hidden={!openSections.stones}>
                         <div className="luxury-accordion-inner">
                             {/* Chained Pearls & Stones Atelier for Earrings */}
                             {showEarringCascade && (
@@ -436,21 +453,21 @@ const Controls = ({
                                             className={`category-tab ${stoneCategory === 'all' ? 'active' : ''}`}
                                             onClick={() => setStoneCategory('all')}
                                         >
-                                            All Assets
+                                            All stones
                                         </button>
                                         <button
                                             type="button"
                                             className={`category-tab ${stoneCategory === 'pearl' ? 'active' : ''}`}
                                             onClick={() => setStoneCategory('pearl')}
                                         >
-                                            ✨ Lustrous Pearls
+                                            Pearls
                                         </button>
                                         <button
                                             type="button"
                                             className={`category-tab ${stoneCategory === 'gemstone' ? 'active' : ''}`}
                                             onClick={() => setStoneCategory('gemstone')}
                                         >
-                                            💎 Cut Gemstones
+                                            Gemstones
                                         </button>
                                     </div>
 
@@ -478,18 +495,18 @@ const Controls = ({
                                                     ) : (
                                                         <img src={comp.image} alt={comp.name} />
                                                     )}
-                                                    <span className="drag-cue-badge">Drag 🖐️</span>
+                                                    <span className="drag-cue-badge">Drag to add</span>
                                                 </div>
                                                 <div className="card-info">
                                                     <div className="flex items-center justify-between gap-1 w-full">
                                                         <span className="comp-name">{comp.name}</span>
                                                         {comp.shapeTag && (
-                                                            <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#c9a962]/15 text-[#c9a962] font-semibold tracking-wide whitespace-nowrap">
+                                                            <span className="sj-shape-tag">
                                                                 {comp.shapeTag}
                                                             </span>
                                                         )}
                                                     </div>
-                                                    <span className="comp-price">+PKR {(comp.price * 2).toLocaleString()} <span className="pair-sub">pair</span></span>
+                                                    <span className="comp-price">+Rs. {(comp.price * 2).toLocaleString()} <span className="pair-sub">pair</span></span>
                                                 </div>
                                                 <button
                                                     type="button"
@@ -520,7 +537,7 @@ const Controls = ({
 
                                         <div className="hierarchy-tree">
                                             <div className="hierarchy-node base-node">
-                                                <span className="node-icon">✨</span>
+
                                                 <span className="node-label">{currentEarringStyle.name} (Base Drop)</span>
                                             </div>
 
@@ -528,7 +545,7 @@ const Controls = ({
                                                 const comp = COMPONENTS.find(c => c.id === stoneId);
                                                 return (
                                                     <div key={`${stoneId}-${idx}`} className="hierarchy-node chained-node">
-                                                        <span className="node-link-connector">⛓️</span>
+                                                        <span className="node-link-connector" aria-hidden="true">—</span>
                                                         {comp?.renderType ? (
                                                             <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 flex items-center justify-center bg-black/10">
                                                                 <SeededStoneCanvasThumb renderType={comp.renderType} metalKey={selectedMetal} />
@@ -597,7 +614,7 @@ const Controls = ({
                                             >
                                                 <img src={comp.image} alt={comp.name} />
                                                 <span className="comp-name">{comp.name}</span>
-                                                <span className="comp-price">+PKR {comp.price.toLocaleString()}</span>
+                                                <span className="comp-price">+Rs. {comp.price.toLocaleString()}</span>
                                             </button>
                                         ))}
                                     </div>
@@ -619,7 +636,7 @@ const Controls = ({
                     >
                         <div className="accordion-title-group">
                             <div className="accordion-title-text">
-                                <h3 className="luxury-accordion-title">Atelier Backdrop</h3>
+                                <h3 className="luxury-accordion-title">Presentation background</h3>
                                 <span className="luxury-accordion-sub">
                                     {BACKDROPS[selectedBackdrop]?.name || "Emerald Velvet"}
                                 </span>
@@ -639,7 +656,7 @@ const Controls = ({
                         </div>
                     </button>
 
-                    <div className="luxury-accordion-collapse">
+                    <div className="luxury-accordion-collapse" hidden={!openSections.backdrop}>
                         <div className="luxury-accordion-inner">
                             <div className="backdrop-selector-grid">
                                 {Object.values(BACKDROPS).map((bd) => {
@@ -677,7 +694,7 @@ const Controls = ({
                     >
                         <div className="accordion-title-group">
                             <div className="accordion-title-text">
-                                <h3 className="luxury-accordion-title">Atelier Guide & Details</h3>
+                                <h3 className="luxury-accordion-title">Design details</h3>
                                 <span className="luxury-accordion-sub">Bespoke Craftsmanship & Physics</span>
                             </div>
                         </div>
@@ -691,7 +708,7 @@ const Controls = ({
                         </div>
                     </button>
 
-                    <div className="luxury-accordion-collapse">
+                    <div className="luxury-accordion-collapse" hidden={!openSections.craftsmanship}>
                         <div className="luxury-accordion-inner">
                             {/* Instructions */}
                             <div className="instruction-box">
@@ -731,23 +748,7 @@ const Controls = ({
                 </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="actions">
-                <button
-                    className="secondary-btn"
-                    onClick={onExport}
-                    disabled={!canAction}
-                >
-                    Save Design
-                </button>
-                <button
-                    className="primary-btn"
-                    onClick={onAddToCart}
-                    disabled={!canAction || isProcessing}
-                >
-                    {isProcessing ? "Processing..." : "Add To Bag"}
-                </button>
-            </div>
+
         </div>
     );
 };

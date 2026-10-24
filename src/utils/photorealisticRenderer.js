@@ -650,6 +650,13 @@ export function drawLuxuryBackdrop(ctx, width, height, backdropKey = "velvet-eme
   const backdrop = BACKDROPS[backdropKey] || BACKDROPS["velvet-emerald"];
 
   ctx.save();
+  if (backdropKey === 'studio-white') {
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, width, height);
+    ctx.restore();
+    return;
+  }
+
 
   // 1. Base Gradient
   const cx = width / 2;
